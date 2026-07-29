@@ -1,0 +1,7 @@
+import axiosClient from "./axiosClient";
+
+export const getAlbums = (params = {}) => axiosClient.get("/albums", { params });
+
+export const getAlbumById = (id) => axiosClient.get(`/albums/${id}`);
+
+export const getAlbumTracks = (id) => axiosClient.get(`/albums/${id}/tracks`);
