@@ -11,7 +11,7 @@ export default function Toast({ message, type = "info", onClose, duration = 3000
 
   const colors = {
     info: "bg-white/10",
-    success: "bg-green-600",
+    success: "bg-[#87CEEB] text-black",
     error: "bg-red-600",
   };
 

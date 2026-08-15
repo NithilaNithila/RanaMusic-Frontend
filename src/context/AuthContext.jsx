@@ -33,6 +33,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Keep state in sync when an API 401 clears the session elsewhere
+  useEffect(() => {
+    const onAuthLogout = () => setUser(null);
+    window.addEventListener("auth:logout", onAuthLogout);
+    return () => window.removeEventListener("auth:logout", onAuthLogout);
+  }, []);
+
   const login = async (credentials) => {
     const { data } = await loginApi(credentials);
     localStorage.setItem("token", data.token);

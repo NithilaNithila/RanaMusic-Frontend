@@ -22,7 +22,7 @@ html, body, #root {
 }
 
 .hero-gradient-text {
-  background-image: linear-gradient(90deg, #1db954, #4be3a0, #1db954);
+  background-image: linear-gradient(90deg, #87CEEB, #bdeaf7, #87CEEB);
   background-size: 300% 300%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -40,5 +40,37 @@ html, body, #root {
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #1db954;
+  background: #87CEEB;
+}
+
+/* NowPlaying: slow album art rotation, only while playing (transform-only for 60fps) */
+@keyframes album-spin {
+  to { transform: rotate(360deg); }
+}
+.album-spin {
+  animation: album-spin 24s linear infinite;
+  will-change: transform;
+}
+
+/* NowPlaying: equalizer bars */
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+
+/* NowPlaying: gentle marquee drift for long titles */
+@keyframes marquee-scroll {
+  from { transform: translateX(8%); }
+  to { transform: translateX(-8%); }
+}
+.marquee-wrap {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  animation: marquee-scroll 8s ease-in-out infinite alternate;
 }

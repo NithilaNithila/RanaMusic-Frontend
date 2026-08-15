@@ -4,7 +4,6 @@ import { getAlbums } from "../api/albumApi";
 import { getArtists } from "../api/artistApi";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 
-import Hero from "../components/home/Hero.jsx";
 import ScrollShowcase from "../components/home/ScrollShowcase.jsx";
 import ParallaxBackground from "../components/home/ParallaxBackground.jsx";
 import Section from "../components/common/Section.jsx";
@@ -49,8 +48,7 @@ export default function Home() {
   return (
     <div className="relative">
       <ParallaxBackground />
-      <Hero onShuffle={handleShuffle} />
-      <ScrollShowcase />
+      <ScrollShowcase onShuffle={handleShuffle} />
 
       {loading ? (
         <Loader size="lg" />

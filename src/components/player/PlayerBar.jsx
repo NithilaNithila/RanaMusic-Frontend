@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import ProgressBar from "./ProgressBar.jsx";
 import VolumeControl from "./VolumeControl.jsx";
 import { DEFAULT_ARTWORK } from "../../utils/constants";
 
 export default function PlayerBar() {
+  const navigate = useNavigate();
   const {
     currentTrack,
     isPlaying,
@@ -21,15 +23,20 @@ export default function PlayerBar() {
 
   return (
     <div className="h-20 bg-brand-surface border-t border-white/10 px-6 flex items-center gap-4">
-      <img
-        src={currentTrack.image || DEFAULT_ARTWORK}
-        alt={currentTrack.name}
-        className="h-12 w-12 rounded-md object-cover"
-      />
-      <div className="w-44 truncate">
-        <p className="text-sm font-medium truncate">{currentTrack.name}</p>
-        <p className="text-xs text-white/50 truncate">{currentTrack.artist_name}</p>
-      </div>
+      <button
+        onClick={() => navigate("/now-playing")}
+        className="flex items-center gap-4 rounded-lg text-left transition-opacity hover:opacity-80"
+      >
+        <img
+          src={currentTrack.image || DEFAULT_ARTWORK}
+          alt={currentTrack.name}
+          className="h-12 w-12 rounded-md object-cover"
+        />
+        <div className="w-44 truncate">
+          <p className="text-sm font-medium truncate">{currentTrack.name}</p>
+          <p className="text-xs text-white/50 truncate">{currentTrack.artist_name}</p>
+        </div>
+      </button>
 
       <div className="flex-1 flex flex-col items-center gap-1">
         <div className="flex items-center gap-4">

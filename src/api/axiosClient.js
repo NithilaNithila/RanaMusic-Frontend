@@ -13,7 +13,7 @@ axiosClient.interceptors.request.use((config) => {
 
 axiosClient.interceptors.response.use(
   (res) => {
-    if (res.data && res.data.success !== undefined) {
+    if (res.data && res.data.success === true) {
       res.data = res.data.data;
     }
     return res;
@@ -22,6 +22,7 @@ axiosClient.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth:logout"));
     }
     return Promise.reject(err);
   }

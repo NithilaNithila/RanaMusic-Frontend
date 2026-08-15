@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
-// Vite bundles every matching file at build time. Frame numbers are
-// zero-padded (001, 002 ...), so a plain alphabetical sort already gives
-// the correct playback order — no parsing needed.
-const frameModules = import.meta.glob("../../assets/frame_*.jpg", {
-  eager: true,
+// Vite only bundles the file *list* at build time (no eager import), so
+// the 240+ frames are emitted as static assets but never downloaded up
+// front. Each frame's loader is a dynamic import, so a frame is fetched
+// only when scrolling gets close to it — the initial page load stays tiny.
+const frameLoaders = import.meta.glob("../../assets/frame_*.jpg", {
   import: "default",
 });
-const FRAMES = Object.keys(frameModules)
-  .sort()
-  .map((key) => frameModules[key]);
+const FRAME_KEYS = Object.keys(frameLoaders).sort();
+const TOTAL = FRAME_KEYS.length;
 
 const FALLBACK_FRAME = 0; // clean, full-guitar shot
 const SCROLL_MULTIPLIER = 4; // wrapper = 4 viewports tall = the scrub runway
+const PREFETCH_AHEAD = 5; // fetch frames this far past the scrub position
+const PREFETCH_BEHIND = 1; // ...and this far behind it
 
 /**
  * MainLayout scrolls its <main className="overflow-y-auto">, not the
@@ -33,8 +35,10 @@ function getScrollParent(el) {
 /**
  * Full-bleed, scroll-scrubbed image-sequence showcase for the Home page.
  * The wrapper is tall and its inner panel is sticky, so scrolling through
- * the wrapper "scrubs" through the 196 guitar frames on a <canvas> — the
- * same technique behind Apple's product pages.
+ * the wrapper "scrubs" through the guitar frames on a <canvas>. Frames
+ * load lazily around the current scrub position (plus a small prefetch
+ * window), so the effect costs only a few hundred KB instead of the
+ * full 95MB sequence.
  *
  * Respects prefers-reduced-motion: those users get one static frame and
  * no scroll-jacking runway at all.
@@ -43,12 +47,14 @@ export default function ScrollShowcase({
   eyebrow = "In the spotlight",
   heading = "Every string. Every detail.",
   subheading = "Scroll to see it come alive.",
+  onShuffle,
 }) {
   const wrapperRef = useRef(null);
   const panelRef = useRef(null);
   const canvasRef = useRef(null);
   const hintRef = useRef(null);
   const imagesRef = useRef([]);
+  const requestedRef = useRef(new Set());
   const frameRef = useRef(-1);
   const rafRef = useRef(null);
 
@@ -80,45 +86,58 @@ export default function ScrollShowcase({
     ctx.drawImage(img, (cssW - drawW) / 2, (cssH - drawH) / 2, drawW, drawH);
   };
 
-  // Preload every frame up front so scrubbing never flashes a blank canvas.
-  useEffect(() => {
-    let cancelled = false;
+  const loadFrame = (index) => {
+    if (imagesRef.current[index]) return;
+    const loader = frameLoaders[FRAME_KEYS[index]];
+    if (!loader) return;
 
-    if (FRAMES.length === 0 && import.meta.env.DEV) {
-      console.warn(
-        "[ScrollShowcase] No frames matched '../../assets/ezgif-frame-*.jpg' — check the glob path."
-      );
-    }
+    loader()
+      .then((url) => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          imagesRef.current[index] = img;
+          setLoadedCount((c) => c + 1);
+          if (index === FALLBACK_FRAME) setReady(true);
+          if (index === frameRef.current) drawFrame(index);
+        };
+        img.onerror = () => {
+          imagesRef.current[index] = null;
+        };
+      })
+      .catch(() => {
+        imagesRef.current[index] = null;
+      });
+  };
 
-    setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-
-    const images = FRAMES.map((src) => {
-      const img = new Image();
-      img.src = src;
-      return img;
-    });
-    imagesRef.current = images;
-
-    if (images.length === 0) return;
-
-    let count = 0;
-    const onDone = () => {
-      count += 1;
-      if (cancelled) return;
-      setLoadedCount(count);
-      if (count === images.length) setReady(true);
-    };
-    images.forEach((img) => {
-      if (img.complete) onDone();
-      else {
-        img.addEventListener("load", onDone, { once: true });
-        img.addEventListener("error", onDone, { once: true });
+  // Kick off loads for the frames around `center` — never more than once
+  // per index. Returns the closest *loaded* index so the canvas always has
+  // something to paint while new frames stream in.
+  const ensureWindow = (center) => {
+    for (
+      let i = Math.max(0, center - PREFETCH_BEHIND);
+      i <= Math.min(TOTAL - 1, center + PREFETCH_AHEAD);
+      i++
+    ) {
+      if (!requestedRef.current.has(i)) {
+        requestedRef.current.add(i);
+        loadFrame(i);
       }
-    });
+    }
+    for (let d = 0; d <= PREFETCH_AHEAD; d++) {
+      for (const i of [center - d, center + d]) {
+        if (i >= 0 && i < TOTAL && imagesRef.current[i]) return i;
+      }
+    }
+    return -1;
+  };
 
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    if (TOTAL === 0 && import.meta.env.DEV) {
+      console.warn("[ScrollShowcase] No frames matched '../../assets/frame_*.jpg'.");
+    }
+    setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    ensureWindow(FALLBACK_FRAME);
   }, []);
 
   // Keep the wrapper/panel sized to the REAL scroll viewport (main's
@@ -126,10 +145,8 @@ export default function ScrollShowcase({
   // drive which frame is drawn from scroll position. Skips the scroll-jack
   // entirely for reduced-motion users — they get one static frame.
   useEffect(() => {
-    if (!ready) return;
     const scrollEl = getScrollParent(wrapperRef.current);
     const isWindow = scrollEl === window;
-    const total = FRAMES.length;
 
     const applySize = () => {
       const viewportH = isWindow ? window.innerHeight : scrollEl.clientHeight;
@@ -144,6 +161,7 @@ export default function ScrollShowcase({
 
     if (reduceMotion) {
       applySize();
+      ensureWindow(FALLBACK_FRAME);
       frameRef.current = FALLBACK_FRAME;
       drawFrame(FALLBACK_FRAME);
       const onResize = () => {
@@ -170,10 +188,11 @@ export default function ScrollShowcase({
           ? Math.min(Math.max((scrollTop - wrapperTop) / scrollable, 0), 1)
           : 0;
 
-      const index = Math.min(total - 1, Math.round(progress * (total - 1)));
-      if (index !== frameRef.current) {
-        frameRef.current = index;
-        drawFrame(index);
+      const index = Math.min(TOTAL - 1, Math.round(progress * (TOTAL - 1)));
+      const nearest = ensureWindow(index);
+      if (nearest >= 0 && nearest !== frameRef.current) {
+        frameRef.current = nearest;
+        drawFrame(nearest);
       }
       if (hintRef.current) {
         hintRef.current.style.opacity = progress > 0.04 ? "0" : "1";
@@ -207,7 +226,7 @@ export default function ScrollShowcase({
     };
   }, [ready, reduceMotion]);
 
-  const pct = FRAMES.length ? Math.round((loadedCount / FRAMES.length) * 100) : 100;
+  const pct = Math.min(100, Math.round((loadedCount / 8) * 100));
 
   return (
     <div ref={wrapperRef} className="relative -mx-6 h-screen">
@@ -232,14 +251,35 @@ export default function ScrollShowcase({
           </div>
         )}
 
-        <div className="relative z-10 h-full flex flex-col justify-center px-6 md:px-10">
-          <span className="text-xs uppercase tracking-[0.2em] text-brand mb-3">
-            {eyebrow}
-          </span>
-          <h2 className="text-3xl md:text-5xl font-extrabold max-w-xl leading-tight">
+        <div className="relative z-10 h-full flex flex-col justify-end px-6 md:px-10 pb-10">
+          <div className="flex items-center gap-2 mb-3 animate-fadeIn">
+            <span className="text-xs uppercase tracking-[0.2em] text-white/70">
+              {eyebrow}
+            </span>
+          </div>
+
+          <h2 className="text-4xl md:text-6xl font-extrabold leading-tight mb-4 animate-fadeInUp" style={{ animationDelay: "0.1s", opacity: 0 }}>
             {heading}
           </h2>
-          <p className="text-white/60 mt-3 max-w-sm">{subheading}</p>
+
+          <p className="text-white/70 max-w-md mb-6 animate-fadeInUp" style={{ animationDelay: "0.25s", opacity: 0 }}>
+            {subheading}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 animate-fadeInUp" style={{ animationDelay: "0.4s", opacity: 0 }}>
+            <button
+              onClick={onShuffle}
+              className="px-6 py-3 rounded-full font-semibold text-sm bg-brand text-black hover:bg-[#7cc9e8] hover:scale-105 transition-all shadow-lg shadow-brand/20"
+            >
+              &#9654; Shuffle Play
+            </button>
+            <Link
+              to="/search"
+              className="px-6 py-3 rounded-full font-semibold text-sm bg-white/10 text-white hover:bg-white/20 hover:scale-105 transition-all backdrop-blur-sm"
+            >
+              Browse Music
+            </Link>
+          </div>
         </div>
 
         {!reduceMotion && (

@@ -1,13 +1,16 @@
+import { useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import { DEFAULT_ARTWORK } from "../../utils/constants";
 
 export default function TrackCard({ track, queue = [] }) {
+  const navigate = useNavigate();
   const { playTrack, currentTrack, isPlaying, togglePlay } = useAudioPlayer();
   const isCurrent = currentTrack?.id === track.id;
 
   const handleClick = () => {
     if (isCurrent) togglePlay();
     else playTrack(track, queue.length ? queue : [track]);
+    navigate("/now-playing");
   };
 
   return (

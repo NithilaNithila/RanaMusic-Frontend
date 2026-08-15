@@ -56,7 +56,7 @@ export default function Hero({ onShuffle }) {
         >
           <button
             onClick={onShuffle}
-            className="px-6 py-3 rounded-full font-semibold text-sm bg-brand text-black hover:bg-green-400 hover:scale-105 transition-all shadow-lg shadow-brand/20"
+            className="px-6 py-3 rounded-full font-semibold text-sm bg-brand text-black hover:bg-[#7cc9e8] hover:scale-105 transition-all shadow-lg shadow-brand/20"
           >
             &#9654; Shuffle Play
           </button>

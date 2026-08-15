@@ -19,11 +19,14 @@ export default function PlaylistDetails() {
   if (loading) return <Loader size="lg" />;
   if (!playlist) return <p className="text-white/50">Playlist not found.</p>;
 
+  const cover =
+    playlist.coverImage || playlist.tracks?.find((t) => t.albumImage || t.image)?.albumImage || playlist.tracks?.[0]?.image || DEFAULT_ARTWORK;
+
   return (
     <div>
       <div className="flex items-end gap-6 mb-8">
         <img
-          src={playlist.coverImage || DEFAULT_ARTWORK}
+          src={cover}
           alt={playlist.name}
           className="h-40 w-40 rounded-lg object-cover shadow-lg"
         />
