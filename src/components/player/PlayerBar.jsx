@@ -22,7 +22,7 @@ export default function PlayerBar() {
   if (!currentTrack) return <div className="h-20" />;
 
   return (
-    <div className="h-20 bg-brand-surface border-t border-white/10 px-6 flex items-center gap-4">
+    <div className="h-20 bg-brand-surface border-t border-white/10 px-3 sm:px-6 flex items-center gap-3 sm:gap-4">
       <button
         onClick={() => navigate("/now-playing")}
         className="flex items-center gap-4 rounded-lg text-left transition-opacity hover:opacity-80"
@@ -30,9 +30,9 @@ export default function PlayerBar() {
         <img
           src={currentTrack.image || DEFAULT_ARTWORK}
           alt={currentTrack.name}
-          className="h-12 w-12 rounded-md object-cover"
+          className="h-10 w-10 sm:h-12 sm:w-12 rounded-md object-cover"
         />
-        <div className="w-44 truncate">
+        <div className="max-w-[90px] sm:max-w-none sm:w-44 truncate">
           <p className="text-sm font-medium truncate">{currentTrack.name}</p>
           <p className="text-xs text-white/50 truncate">{currentTrack.artist_name}</p>
         </div>

@@ -24,7 +24,7 @@ export default function TrackCard({ track, queue = [] }) {
           alt={track.name}
           className="w-full aspect-square object-cover rounded-md mb-3"
         />
-        <div className="absolute bottom-1 right-1 h-9 w-9 rounded-full bg-brand text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-1 right-1 h-9 w-9 rounded-full bg-brand text-black flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           {isCurrent && isPlaying ? "⏸" : "▶"}
         </div>
       </div>

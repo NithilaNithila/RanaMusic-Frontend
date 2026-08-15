@@ -229,7 +229,7 @@ export default function ScrollShowcase({
   const pct = Math.min(100, Math.round((loadedCount / 8) * 100));
 
   return (
-    <div ref={wrapperRef} className="relative -mx-6 h-screen">
+    <div ref={wrapperRef} className="relative -mx-4 sm:-mx-6 h-screen">
       <div
         ref={panelRef}
         className="sticky top-0 w-full h-screen overflow-hidden bg-black"

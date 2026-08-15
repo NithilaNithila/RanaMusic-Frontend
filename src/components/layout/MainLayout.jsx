@@ -8,7 +8,7 @@ export default function MainLayout({ children }) {
       <Navbar />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="p-6">{children}</div>
+        <div className="px-4 py-5 sm:p-6">{children}</div>
         <Footer />
       </main>
 
