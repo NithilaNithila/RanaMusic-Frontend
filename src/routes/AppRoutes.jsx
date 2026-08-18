@@ -10,6 +10,9 @@ import Profile from "../pages/Profile.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import NotFound from "../pages/NotFound.jsx";
+import About from "../pages/About.jsx";
+import Contact from "../pages/Contact.jsx";
+import Privacy from "../pages/Privacy.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 
 export default function AppRoutes() {
@@ -39,6 +42,9 @@ export default function AppRoutes() {
       />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
