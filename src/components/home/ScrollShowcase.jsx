@@ -12,7 +12,7 @@ const FRAME_KEYS = Object.keys(frameLoaders).sort();
 const TOTAL = FRAME_KEYS.length;
 
 const FALLBACK_FRAME = 0; // clean, full-guitar shot
-const SCROLL_MULTIPLIER = 4; // wrapper = 4 viewports tall = the scrub runway
+const SCROLL_MULTIPLIER = 2; // wrapper = 2 viewports tall = the scrub runway
 const PREFETCH_AHEAD = 5; // fetch frames this far past the scrub position
 const PREFETCH_BEHIND = 1; // ...and this far behind it
 
@@ -229,10 +229,10 @@ export default function ScrollShowcase({
   const pct = Math.min(100, Math.round((loadedCount / 8) * 100));
 
   return (
-    <div ref={wrapperRef} className="relative -mx-4 sm:-mx-6 h-screen">
+    <div ref={wrapperRef} className="relative -mx-4 sm:-mx-6 -mt-5 sm:-mt-6 mb-10 h-screen">
       <div
         ref={panelRef}
-        className="sticky top-0 w-full h-screen overflow-hidden bg-black"
+        className="sticky top-0 w-full h-screen overflow-hidden bg-brand-light-bg dark:bg-black"
       >
         <canvas
           ref={canvasRef}
@@ -240,42 +240,55 @@ export default function ScrollShowcase({
           className="absolute inset-0 h-full w-full"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/85 via-transparent to-brand-dark/50" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
 
         {!ready && (
-          <div className="absolute inset-0 flex items-center justify-center bg-brand-dark">
+          <div className="absolute inset-0 flex items-center justify-center bg-brand-light-bg dark:bg-brand-dark">
             <div className="text-center">
-              <div className="w-10 h-10 mx-auto mb-3 rounded-full border-2 border-white/20 border-t-brand animate-spin" />
-              <p className="text-xs text-white/50">{pct}%</p>
+              <div className="w-10 h-10 mx-auto mb-3 rounded-full border-2 border-black/15 border-t-brand animate-spin dark:border-white/20" />
+              <p className="text-xs text-black/50 dark:text-white/50">{pct}%</p>
             </div>
           </div>
         )}
 
         <div className="relative z-10 h-full flex flex-col justify-end px-6 md:px-10 pb-10">
-          <div className="flex items-center gap-2 mb-3 animate-fadeIn">
-            <span className="text-xs uppercase tracking-[0.2em] text-white/70">
-              {eyebrow}
+          <div className="mb-4 flex items-center gap-2 animate-fadeIn">
+            <span className="h-4 items-end gap-[2.5px] flex">
+              {[0.8, 1.05, 0.65].map((d, i) => (
+                <span
+                  key={i}
+                  className="eq-bar w-[3px] rounded-full bg-brand"
+                  style={{ animationDuration: `${d}s`, animationDelay: `${i * 0.13}s` }}
+                />
+              ))}
             </span>
+            <span className="text-[13px] font-medium text-white/70">{eyebrow}</span>
           </div>
 
-          <h2 className="text-4xl md:text-6xl font-extrabold leading-tight mb-4 animate-fadeInUp" style={{ animationDelay: "0.1s", opacity: 0 }}>
+          <h2
+            className="font-display mb-4 max-w-2xl text-5xl font-semibold leading-[1.05] tracking-tight text-white md:text-7xl animate-fadeInUp"
+            style={{ animationDelay: "0.1s", opacity: 0 }}
+          >
             {heading}
           </h2>
 
-          <p className="text-white/70 max-w-md mb-6 animate-fadeInUp" style={{ animationDelay: "0.25s", opacity: 0 }}>
+          <p className="mb-7 max-w-md text-white/75 animate-fadeInUp" style={{ animationDelay: "0.25s", opacity: 0 }}>
             {subheading}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 animate-fadeInUp" style={{ animationDelay: "0.4s", opacity: 0 }}>
             <button
               onClick={onShuffle}
-              className="px-6 py-3 rounded-full font-semibold text-sm bg-brand text-black hover:bg-[#7cc9e8] hover:scale-105 transition-all shadow-lg shadow-brand/20"
+              className="group inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-black shadow-lg shadow-brand/20 transition-all hover:scale-105 hover:bg-brand-300"
             >
-              &#9654; Shuffle Play
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+                <polygon points="7 4 21 12 7 20 7 4" />
+              </svg>
+              Shuffle Play
             </button>
             <Link
               to="/search"
-              className="px-6 py-3 rounded-full font-semibold text-sm bg-white/10 text-white hover:bg-white/20 hover:scale-105 transition-all backdrop-blur-sm"
+              className="rounded-full bg-black/30 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/50"
             >
               Browse Music
             </Link>
@@ -285,7 +298,7 @@ export default function ScrollShowcase({
         {!reduceMotion && (
           <div
             ref={hintRef}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/50 animate-floatY transition-opacity duration-300"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/60 animate-floatY transition-opacity duration-300"
           >
             <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
             <span className="text-lg">&#8595;</span>

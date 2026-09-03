@@ -2,6 +2,11 @@ import axiosClient from "./axiosClient";
 
 export const getMyPlaylists = () => axiosClient.get("/playlists");
 
+export const getPublicPlaylists = (query = "", params = {}) =>
+  axiosClient.get("/playlists/public", {
+    params: { q: query || undefined, ...params },
+  });
+
 export const getPlaylistById = (id) => axiosClient.get(`/playlists/${id}`);
 
 export const createPlaylist = (data) => axiosClient.post("/playlists", data);

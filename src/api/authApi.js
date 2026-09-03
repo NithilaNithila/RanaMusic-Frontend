@@ -5,3 +5,5 @@ export const login = (credentials) => axiosClient.post("/auth/login", credential
 export const register = (data) => axiosClient.post("/auth/register", data);
 
 export const getProfile = () => axiosClient.get("/auth/me");
+
+export const deleteAccount = () => axiosClient.delete("/auth/me");

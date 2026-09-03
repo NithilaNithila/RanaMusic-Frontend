@@ -17,6 +17,12 @@ function parseColor(c) {
   };
 }
 
+// rgb(r,g,b) -> #rrggbb (used by the premium player for alpha-chained glows)
+function rgbToHex(c) {
+  const h = (v) => v.toString(16).padStart(2, "0");
+  return `#${h(c[0])}${h(c[1])}${h(c[2])}`;
+}
+
 export function averagePalette(data) {
   let r = 0,
     g = 0,
@@ -56,7 +62,11 @@ export function averagePalette(data) {
     base: tint(dominant, 0.5),
     top: tint(dominant, 0.42),
     bottom: "#0b0e14",
-    accent: tint([Math.min(255, dominant[0] * 0.85 + 110), Math.min(255, dominant[1] * 0.85 + 110), Math.min(255, dominant[2] * 0.85 + 110)], 1),
+    accent: rgbToHex([
+      Math.min(255, dominant[0] * 0.85 + 110),
+      Math.min(255, dominant[1] * 0.85 + 110),
+      Math.min(255, dominant[2] * 0.85 + 110),
+    ]),
     gradient: [tint(dominant, 0.3), "#0e1116"],
     avg: parseColor([r, g, b]),
   };

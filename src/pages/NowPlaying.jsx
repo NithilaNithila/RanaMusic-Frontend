@@ -1,19 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import { useAuth } from "../hooks/useAuth";
 import { getMyPlaylists, createPlaylist, addTrackToPlaylist } from "../api/playlistApi";
-import { DEFAULT_ARTWORK } from "../utils/constants";
+import { imageSrc, handleImageError } from "../utils/imageFallback";
+import { extractPalette } from "../utils/colorExtract";
 
 import NowPlayingBackground from "../components/player/NowPlayingBackground.jsx";
-import AlbumArt from "../components/player/AlbumArt.jsx";
-import SeekBar from "../components/player/SeekBar.jsx";
+import AlbumArtwork from "../components/player/AlbumArtwork.jsx";
+import SongInformation from "../components/player/SongInformation.jsx";
+import ProgressBar from "../components/player/ProgressBar.jsx";
 import PlayerControls from "../components/player/PlayerControls.jsx";
 import QueueSheet from "../components/player/QueueSheet.jsx";
+import LyricsSheet from "../components/player/LyricsSheet.jsx";
 import Toast from "../components/common/Toast.jsx";
 
-const iconProps = { width: 22, height: 22, stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+const iconProps = {
+  width: 20,
+  height: 20,
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  fill: "none",
+};
 
 const Icon = {
   Back: (props) => (
@@ -22,9 +33,37 @@ const Icon = {
       <polyline points="12 19 5 12 12 5" />
     </svg>
   ),
+  Menu: (props) => (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" {...props}>
+      <circle cx="12" cy="5" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="19" r="1.6" />
+    </svg>
+  ),
   Heart: (props) => (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill={props.filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={props.filled ? 0 : 2} strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="17" height="17" fill={props.filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ),
+  Lyric: (props) => (
+    <svg viewBox="0 0 24 24" {...iconProps} {...props}>
+      <path d="M12 3c-4.5 0-8 2.8-8 6.3 0 1.9 1 3.6 2.7 4.7-.2 1.5-1 2.9-2.2 4 0 0 2.9-.2 4.6-1.6 1 .3 2 .4 3 .4 4.5 0 8-2.8 8-6.3S16.5 3 12 3z" />
+    </svg>
+  ),
+  Queue: (props) => (
+    <svg viewBox="0 0 24 24" {...iconProps} {...props}>
+      <path d="M8 6h13M8 12h13M8 18h9" />
+      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Playlist: (props) => (
+    <svg viewBox="0 0 24 24" {...iconProps} {...props}>
+      <path d="M8 6h13M8 12h13M8 18h9" />
+      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
     </svg>
   ),
   Share: (props) => (
@@ -36,32 +75,27 @@ const Icon = {
       <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
     </svg>
   ),
-  Timer: (props) => (
+  Close: (props) => (
     <svg viewBox="0 0 24 24" {...iconProps} {...props}>
-      <circle cx="12" cy="13" r="8" />
-      <polyline points="12 9 12 13 14.5 14.5" />
-      <line x1="9" y1="2" x2="15" y2="2" />
-    </svg>
-  ),
-  Playlist: (props) => (
-    <svg viewBox="0 0 24 24" {...iconProps} {...props}>
-      <path d="M8 6h13M8 12h13M8 18h9" />
-      <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
-      <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
-      <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
 };
 
 const SLEEP_TIMER_OPTIONS = [0, 15, 30, 45, 60];
+const QUALITY_OPTIONS = ["LOSSLESS", "HD", "High", "Standard"];
 
-function stagger(i) {
+function step(i, delay = 0.25) {
   return {
     initial: { opacity: 0, y: 14 },
     animate: { opacity: 1, y: 0 },
-    transition: { delay: 0.25 + i * 0.07, type: "spring", stiffness: 220, damping: 22 },
+    transition: { delay: delay + i * 0.06, type: "spring", stiffness: 220, damping: 24 },
   };
 }
+
+const HEADER_BTN =
+  "grid h-10 w-10 place-items-center rounded-full text-white/70 transition-all duration-300 hover:bg-white/[0.08] hover:text-white";
 
 export default function NowPlaying() {
   const navigate = useNavigate();
@@ -86,12 +120,20 @@ export default function NowPlaying() {
 
   const { queue, playTrack } = player;
 
+  const [accent, setAccent] = useState("#7C5CFF");
+  const [quality, setQuality] = useState("LOSSLESS");
   const [sleepTimer, setSleepTimer] = useState(0);
   const [sleepOpen, setSleepOpen] = useState(false);
   const sleepTimeoutRef = useRef(null);
+  const playlistTimerRef = useRef(null);
+  const progressRef = useRef(progress);
+  const durationRef = useRef(duration);
+  useEffect(() => {
+    progressRef.current = progress;
+    durationRef.current = duration;
+  }, [progress, duration]);
   const [toast, setToast] = useState(null);
-  const [playlistOpen, setPlaylistOpen] = useState(false);
-  const [queueOpen, setQueueOpen] = useState(false);
+  const [dialog, setDialog] = useState({ kind: null });
   const touchStartY = useRef(null);
   const [myPlaylists, setMyPlaylists] = useState([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
@@ -102,8 +144,33 @@ export default function NowPlaying() {
 
   const { user } = useAuth();
 
+  const src = imageSrc(track?.image);
+  useEffect(() => {
+    if (!src) return;
+    let alive = true;
+    extractPalette(src).then((p) => {
+      if (alive && p?.accent) setAccent(p.accent);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [src]);
+
+  const buffered = useMemo(
+    () => Math.min(duration, progress + Math.min(duration * 0.18, 24)),
+    [progress, duration]
+  );
+
   const showToast = (message) => setToast({ message });
-  const closeToast = () => setToast(null);
+  const closeToast = useCallback(() => setToast(null), []);
+  const openDialog = (kind) => setDialog({ kind });
+  const closeDialog = () => setDialog({ kind: null });
+
+  const pickQuality = (q) => {
+    setQuality(q);
+    closeDialog();
+    showToast(`${q} quality enabled`);
+  };
 
   const setSleepTime = (min) => {
     if (sleepTimeoutRef.current) {
@@ -111,18 +178,37 @@ export default function NowPlaying() {
       sleepTimeoutRef.current = null;
     }
     setSleepTimer(min);
-    setSleepOpen(false);
+    closeDialog();
     if (min > 0) {
       sleepTimeoutRef.current = setTimeout(() => pause(), min * 60 * 1000);
     }
   };
 
-  useEffect(() => () => {
-    if (sleepTimeoutRef.current) clearTimeout(sleepTimeoutRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (sleepTimeoutRef.current) clearTimeout(sleepTimeoutRef.current);
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
+    },
+    []
+  );
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === "ArrowRight") seek(Math.min(durationRef.current, progressRef.current + 5));
+      else if (e.key === "ArrowLeft") seek(Math.max(0, progressRef.current - 5));
+      else if (e.key === "l" || e.key === "L") toggleLike();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [togglePlay, seek, toggleLike]);
 
   const openPlaylistPicker = async () => {
-    setPlaylistOpen(true);
+    openDialog("playlist");
     setPlaylistError("");
     if (!user) return;
     setPlaylistsLoading(true);
@@ -143,8 +229,9 @@ export default function NowPlaying() {
     try {
       await addTrackToPlaylist(playlist._id, track);
       setAddedId(playlist._id);
-      setTimeout(() => {
-        setPlaylistOpen(false);
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
+      playlistTimerRef.current = setTimeout(() => {
+        closeDialog();
         setAddedId(null);
       }, 700);
     } catch {
@@ -164,8 +251,9 @@ export default function NowPlaying() {
       await addTrackToPlaylist(data._id, track);
       setNewPlaylistName("");
       setAddedId(data._id);
-      setTimeout(() => {
-        setPlaylistOpen(false);
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
+      playlistTimerRef.current = setTimeout(() => {
+        closeDialog();
         setAddedId(null);
       }, 700);
     } catch {
@@ -179,14 +267,10 @@ export default function NowPlaying() {
     const text = `${track?.name} — ${track?.artist_name}`;
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Link copied to clipboard");
+      showToast("Share link copied to clipboard");
     } catch {
       showToast(text);
     }
-  };
-
-  const cycleSleepTimer = () => {
-    setSleepOpen(true);
   };
 
   const handleAlbumTouchStart = (e) => {
@@ -197,165 +281,321 @@ export default function NowPlaying() {
     if (touchStartY.current == null) return;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     touchStartY.current = null;
-    if (dy < -60) setQueueOpen(true);
+    if (dy < -60) openDialog("queue");
   };
+
+  const menuItems = [
+    {
+      key: "quality",
+      label: `Audio quality — ${quality}`,
+      icon: (
+        <svg viewBox="0 0 24 24" width="18" height="18" {...iconProps}>
+          <path d="M1 8h5l3.5-4.5 3 9L16 5l3 3h4" />
+          <path d="M3 12h3l2.5-3 3 9 3.5-10 3.5 4h3" />
+        </svg>
+      ),
+      onClick: () => {
+        closeDialog();
+        openDialog("quality");
+      },
+    },
+    {
+      key: "playlist",
+      label: "Add to playlist",
+      icon: <Icon.Playlist width={18} height={18} />,
+      onClick: () => {
+        closeDialog();
+        openPlaylistPicker();
+      },
+    },
+    {
+      key: "favorite",
+      label: isLiked ? "Remove from favorites" : "Add to favorites",
+      icon: <Icon.Heart filled={isLiked} width={18} height={18} />,
+      onClick: () => {
+        closeDialog();
+        toggleLike();
+      },
+    },
+    {
+      key: "share",
+      label: "Share this track",
+      icon: <Icon.Share width={18} height={18} />,
+      onClick: () => {
+        closeDialog();
+        handleShare();
+      },
+    },
+    {
+      key: "sleep",
+      label: sleepTimer > 0 ? `Sleep timer — ${sleepTimer} min` : "Sleep timer",
+      icon: (
+        <svg viewBox="0 0 24 24" width="18" height="18" {...iconProps}>
+          <path d="M12 3a9 9 0 1 0 9 9c0-4.6-3.5-8.4-8-8.9l.2.4a9 9 0 0 1-3.4.5" />
+        </svg>
+      ),
+      onClick: () => {
+        closeDialog();
+        openDialog("sleep");
+      },
+    },
+  ];
 
   if (!track) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0b0e14] text-white">
+      <div className="flex h-screen items-center justify-center bg-ink-950 text-white">
         <p className="text-white/50">Nothing is playing.</p>
-        <button onClick={() => navigate("/")} className="ml-4 text-[#87CEEB]">
+        <button onClick={() => navigate("/")} className="ml-4 text-brand">
           Go to Home
         </button>
       </div>
     );
   }
 
-  const marquee = track.name.length > 22;
+  const artDesktop = "min(44vh, 38vw, 500px, calc(100vh - 565px))";
+  const artMobile = "min(58vw, 30vh, 290px)";
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden text-white"
-      initial={{ opacity: 0, y: 60, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 40 }}
-      transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+      className="font-premium fixed inset-0 z-50 flex flex-col overflow-hidden bg-ink-950 text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      aria-label="Now playing screen"
     >
       <NowPlayingBackground imageUrl={track.image} />
 
-      <div className="relative z-10 flex h-full flex-col">
-        <motion.header {...stagger(0)} className="flex shrink-0 items-center gap-3 px-5 py-3">
-          <motion.button
-            onClick={() => navigate(-1)}
-            whileTap={{ scale: 0.88 }}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            title="Back"
+      {/* ————— Flat header ————— */}
+      <motion.header {...step(0, 0.1)} className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 pt-5 sm:px-8 sm:pt-6">
+        <button onClick={() => navigate(-1)} className={HEADER_BTN} aria-label="Go back" title="Back">
+          <Icon.Back width={21} height={21} />
+        </button>
+
+        <button onClick={() => openDialog("menu")} className={HEADER_BTN} aria-label="Options menu" title="Options">
+          <Icon.Menu />
+        </button>
+      </motion.header>
+
+      {/* ————— Center stage ————— */}
+      <div className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col lg:px-8 lg:pt-20">
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6 pb-24 pt-16 lg:gap-6 lg:overflow-hidden lg:px-8 lg:pb-8 lg:pt-0">
+          {/* Artwork (swipe up anywhere on it for the queue) */}
+          <div
+            className="flex shrink-0 justify-center"
+            onTouchStart={handleAlbumTouchStart}
+            onTouchEnd={handleAlbumTouchEnd}
           >
-            <Icon.Back />
-          </motion.button>
-
-          <div className="min-w-0 flex-1 text-center">
-            <p className={`text-sm font-semibold ${marquee ? "marquee-wrap" : "truncate"}`}>{track.name}</p>
-            <p className="truncate text-xs text-white/50">{track.artist_name}</p>
-          </div>
-        </motion.header>
-
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-6 pb-4">
-          <div className="flex flex-1 items-center" onTouchStart={handleAlbumTouchStart} onTouchEnd={handleAlbumTouchEnd}>
-            <AlbumArt track={track} isPlaying={isPlaying} onLike={toggleLike} />
+            <AlbumArtwork
+              track={track}
+              isPlaying={isPlaying}
+              onLike={toggleLike}
+              accent={accent}
+              size={artDesktop}
+            />
           </div>
 
+          {/* Song details — animates on track change */}
+          <SongInformation track={track} quality={quality} />
+
+          {/* Progress */}
+          <div className="w-full lg:max-w-[560px]">
+            <ProgressBar progress={progress} duration={duration} onSeek={seek} buffered={buffered} />
+          </div>
+
+          {/* Controls */}
           <div className="w-full">
-            <motion.div {...stagger(3)} className="mb-3 text-center">
-              <h1 className={`text-xl font-bold leading-tight sm:text-2xl ${marquee ? "marquee-wrap" : "truncate"}`}>
-                {track.name}
-              </h1>
-              <p className="mt-1 truncate text-sm text-white/60">{track.artist_name}</p>
-              <p className="mt-0.5 truncate text-xs text-white/35">{track.album_name || "Single"}</p>
-
-              <div className="mt-3 flex items-center justify-center gap-6 sm:gap-8">
-                <motion.button
-                  onClick={toggleLike}
-                  whileTap={{ scale: 1.25 }}
-                  className={`transition-colors ${isLiked ? "text-[#ff5a7a]" : "text-white/60 hover:text-white"}`}
-                  title="Like"
-                >
-                  <Icon.Heart filled={isLiked} />
-                </motion.button>
-                <motion.button
-                  onClick={() => setSleepOpen(true)}
-                  whileTap={{ scale: 0.88 }}
-                  className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                    sleepTimer > 0 ? "bg-white/15 text-[#87CEEB]" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
-                  }`}
-                  title={sleepTimer > 0 ? `Sleep timer: ${sleepTimer} min` : "Sleep timer"}
-                >
-                  <Icon.Timer />
-                  {sleepTimer > 0 && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#87CEEB] px-1.5 text-[9px] font-bold text-black">
-                      {sleepTimer}
-                    </span>
-                  )}
-                </motion.button>
-                <motion.button
-                  onClick={openPlaylistPicker}
-                  whileTap={{ scale: 0.88 }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-                  title="Add to playlist"
-                >
-                  <Icon.Playlist />
-                </motion.button>
-                <motion.button
-                  onClick={handleShare}
-                  whileTap={{ scale: 0.88 }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-                  title="Share"
-                >
-                  <Icon.Share />
-                </motion.button>
-              </div>
-            </motion.div>
-
-            <motion.div {...stagger(4)} className="mb-3">
-              <SeekBar progress={progress} duration={duration} onSeek={seek} />
-            </motion.div>
-
-            <motion.div {...stagger(5)} className="mb-1">
-              <PlayerControls
-                isPlaying={isPlaying}
-                isShuffled={isShuffled}
-                repeatMode={repeatMode}
-                onShuffle={toggleShuffle}
-                onPrev={playPrev}
-                onTogglePlay={togglePlay}
-                onNext={playNext}
-                onRepeat={cycleRepeat}
-              />
-            </motion.div>
-
-            <motion.div {...stagger(6)} className="flex items-center justify-center px-2 pt-2">
-              <motion.button
-                onClick={() => setQueueOpen(true)}
-                whileTap={{ scale: 0.9 }}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-                title="Swipe up to open queue"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 15 12 9 18 15" />
-                </svg>
-                Queue
-              </motion.button>
-            </motion.div>
+            <PlayerControls
+              isPlaying={isPlaying}
+              isShuffled={isShuffled}
+              repeatMode={repeatMode}
+              onShuffle={toggleShuffle}
+              onPrev={playPrev}
+              onTogglePlay={togglePlay}
+              onNext={playNext}
+              onRepeat={cycleRepeat}
+            />
           </div>
-        </div>
+
+          {/* Mobile action row */}
+          <div className="flex items-center justify-center gap-2 lg:hidden">
+            <button
+              onClick={toggleLike}
+              aria-pressed={isLiked}
+              aria-label="Add to favorites"
+              className={`flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-sm font-medium transition-colors hover:bg-white/[0.12] ${
+                isLiked ? "text-rose" : "text-white/70"
+              }`}
+            >
+              <Icon.Heart filled={isLiked} width={16} height={16} />
+              Favorites
+            </button>
+            <button
+              onClick={() => openDialog("lyrics")}
+              aria-label="Lyrics"
+              className="flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.12]"
+            >
+              <Icon.Lyric width={16} height={16} />
+              Lyrics
+            </button>
+            <button
+              onClick={() => openDialog("queue")}
+              aria-label="Up next"
+              className="flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.12]"
+            >
+              <Icon.Queue width={16} height={16} />
+              Up next
+            </button>
+          </div>
+        </main>
       </div>
 
+      {/* ————— Queue sheet ————— */}
       <AnimatePresence>
-        {playlistOpen && (
+        {dialog.kind === "queue" && (
+          <QueueSheet open onClose={closeDialog} queue={queue} currentTrack={track} onPlay={playTrack} />
+        )}
+      </AnimatePresence>
+
+      {/* ————— Lyrics sheet ————— */}
+      <AnimatePresence>
+        {dialog.kind === "lyrics" && (
+          <LyricsSheet open onClose={closeDialog} track={track} progress={progress} duration={duration} />
+        )}
+      </AnimatePresence>
+
+      {/* ————— Three-dot menu ————— */}
+      <AnimatePresence>
+        {dialog.kind === "menu" && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPlaylistOpen(false)} />
             <motion.div
-              className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-[28px] border-t border-white/10 bg-[#141414] px-6 pb-8 pt-4"
+              className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeDialog}
+            />
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-50 rounded-t-[28px] border-t border-white/10 bg-ink-900/95 px-6 pb-8 pt-4 text-white backdrop-blur-2xl sm:bottom-6 sm:left-auto sm:right-6 sm:max-h-[80vh] sm:overflow-y-auto sm:rounded-[20px] sm:border sm:border-white/10 sm:px-3 sm:py-2"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Options"
+            >
+              <div className="mb-4 flex justify-center sm:hidden">
+                <div className="h-1.5 w-12 rounded-full bg-white/20" />
+              </div>
+              <div className="flex flex-col gap-1">
+                {menuItems.map((o) => (
+                  <button
+                    key={o.key}
+                    onClick={o.onClick}
+                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/85 transition-colors hover:bg-white/[0.07]"
+                  >
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/[0.07] text-white/80">{o.icon}</span>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ————— Audio quality ————— */}
+      <AnimatePresence>
+        {dialog.kind === "quality" && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeDialog}
+            />
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-50 rounded-t-[28px] border-t border-white/10 bg-ink-900/95 px-6 pb-8 pt-4 text-white backdrop-blur-2xl sm:rounded-t-[32px]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Audio quality"
+            >
+              <div className="mb-5 flex justify-center">
+                <div className="h-1.5 w-12 rounded-full bg-white/20" />
+              </div>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-extrabold">Audio quality</h2>
+                <button onClick={closeDialog} className="grid h-9 w-9 place-items-center rounded-full text-white/70 hover:bg-white/[0.07]" aria-label="Close">
+                  <Icon.Close width={16} height={16} />
+                </button>
+              </div>
+              <p className="mb-4 text-sm text-white/50">Higher quality uses more data and battery.</p>
+              <div className="flex flex-col">
+                {QUALITY_OPTIONS.map((q) => {
+                  const active = q === quality;
+                  return (
+                    <button
+                      key={q}
+                      onClick={() => pickQuality(q)}
+                      className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-accent-500/15 text-accent-300 ring-1 ring-accent-500/40"
+                          : "text-white/85 hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      <span>{q}</span>
+                      {active && <span className="text-accent-300">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ————— Add to playlist ————— */}
+      <AnimatePresence>
+        {dialog.kind === "playlist" && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeDialog}
+            />
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[72vh] overflow-y-auto rounded-t-[28px] border-t border-white/10 bg-ink-900/95 px-6 pb-8 pt-4 text-white backdrop-blur-2xl"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add to playlist"
             >
               <div className="mb-4 flex justify-center">
-                <div className="h-1.5 w-12 rounded-full bg-white/25" />
+                <div className="h-1.5 w-12 rounded-full bg-white/20" />
               </div>
               <div className="mb-1 flex items-center justify-between">
-                <h2 className="text-xl font-bold">Add to playlist</h2>
+                <h2 className="text-xl font-extrabold">Add to playlist</h2>
+                <button onClick={closeDialog} className="grid h-9 w-9 place-items-center rounded-full text-white/70 hover:bg-white/[0.07]" aria-label="Close">
+                  <Icon.Close width={16} height={16} />
+                </button>
               </div>
               <p className="mb-4 truncate text-sm text-white/50">{track.name}</p>
 
               {!user ? (
                 <div className="flex flex-col items-center gap-3 py-4">
                   <p className="text-sm text-white/60">Login to save this song to a playlist.</p>
-                  <button
-                    onClick={() => navigate("/login")}
-                    className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition-transform hover:scale-105"
-                  >
+                  <button onClick={() => navigate("/login")} className="rounded-full bg-gradient-to-r from-accent-200 to-accent-600 px-6 py-2 text-sm font-semibold text-black transition-transform hover:scale-105">
                     Login
                   </button>
                 </div>
@@ -371,7 +611,7 @@ export default function NowPlaying() {
                     <button
                       type="submit"
                       disabled={playlistBusy || !newPlaylistName.trim()}
-                      className="rounded-full bg-[#87CEEB] px-4 py-2 text-sm font-semibold text-black transition-colors disabled:opacity-40"
+                      className="rounded-full bg-gradient-to-r from-accent-200 to-accent-600 px-4 py-2 text-sm font-semibold text-black transition-colors disabled:opacity-40"
                     >
                       Create
                     </button>
@@ -391,22 +631,23 @@ export default function NowPlaying() {
                           key={p._id}
                           onClick={() => handleAddToPlaylist(p)}
                           disabled={playlistBusy}
-                          className={`flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left transition-colors disabled:opacity-50 ${
-                            added ? "bg-[#87CEEB]/15" : "hover:bg-white/10"
+                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors disabled:opacity-50 ${
+                            added ? "bg-accent-500/15" : "hover:bg-white/[0.06]"
                           }`}
                         >
                           <span className="flex min-w-0 items-center gap-3">
                             <img
-                              src={p.coverImage || p.tracks?.[0]?.albumImage || p.tracks?.[0]?.image || DEFAULT_ARTWORK}
+                              src={imageSrc(p.coverImage || p.tracks?.[0]?.albumImage || p.tracks?.[0]?.image)}
+                              onError={handleImageError}
                               alt={p.name}
-                              className="h-11 w-11 rounded-md object-cover"
+                              className="h-11 w-11 rounded-xl object-cover ring-1 ring-white/10"
                             />
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium">{p.name}</span>
+                              <span className="block truncate text-sm font-medium text-white">{p.name}</span>
                               <span className="block text-xs text-white/40">{p.tracks?.length || 0} songs</span>
                             </span>
                           </span>
-                          <span className={`text-sm font-semibold ${added ? "text-[#87CEEB]" : "text-[#87CEEB]/70"}`}>
+                          <span className={`text-sm font-semibold ${added ? "text-accent-300" : "text-accent-300/70"}`}>
                             {added ? "✓" : "+"}
                           </span>
                         </button>
@@ -422,36 +663,34 @@ export default function NowPlaying() {
         )}
       </AnimatePresence>
 
+      {/* ————— Sleep timer ————— */}
       <AnimatePresence>
-        {queueOpen && (
-          <QueueSheet
-            open={queueOpen}
-            onClose={() => setQueueOpen(false)}
-            queue={queue}
-            currentTrack={track}
-            onPlay={playTrack}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {sleepOpen && (
+        {dialog.kind === "sleep" && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSleepOpen(false)} />
             <motion.div
-              className="fixed inset-x-0 bottom-0 z-50 rounded-t-[28px] border-t border-white/10 bg-[#141414] px-6 pb-8 pt-4"
+              className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeDialog}
+            />
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-50 rounded-t-[28px] border-t border-white/10 bg-ink-900/95 px-6 pb-8 pt-4 text-white backdrop-blur-2xl"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Sleep timer"
             >
-              <div className="mb-4 flex justify-center">
-                <div className="h-1.5 w-12 rounded-full bg-white/25" />
+              <div className="mb-5 flex justify-center">
+                <div className="h-1.5 w-12 rounded-full bg-white/20" />
               </div>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold">Sleep timer</h2>
+                <h2 className="text-xl font-extrabold">Sleep timer</h2>
                 {sleepTimer > 0 && (
-                  <span className="rounded-full bg-[#87CEEB]/20 px-3 py-1 text-xs font-semibold text-[#87CEEB]">
+                  <span className="rounded-full bg-accent-500/20 px-3 py-1 text-xs font-semibold text-accent-300 ring-1 ring-accent-500/40">
                     {sleepTimer} min
                   </span>
                 )}
@@ -464,12 +703,14 @@ export default function NowPlaying() {
                     <button
                       key={min}
                       onClick={() => setSleepTime(min)}
-                      className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        active ? "bg-[#87CEEB]/15 text-[#87CEEB]" : "text-white/85 hover:bg-white/10"
+                      className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-accent-500/15 text-accent-300 ring-1 ring-accent-500/40"
+                          : "text-white/85 hover:bg-white/[0.06]"
                       }`}
                     >
                       <span>{min === 0 ? "Off" : `${min} minutes`}</span>
-                      {active && <span className="text-[#87CEEB]">✓</span>}
+                      {active && <span className="text-accent-300">✓</span>}
                     </button>
                   );
                 })}

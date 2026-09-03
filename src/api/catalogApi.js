@@ -1,0 +1,21 @@
+import axiosClient from "./axiosClient";
+
+const SOURCES = {
+  spotify: "/spotify",
+  ytmusic: "/ytmusic",
+  amazon: "/amazon",
+};
+
+export const searchCatalog = (source, params = {}) =>
+  axiosClient.get(`${SOURCES[source]}/search`, { params });
+
+export const getCatalogPlaylist = (source, id, params = {}) =>
+  axiosClient.get(`${SOURCES[source]}/playlists/${id}`, { params });
+
+export const getCatalogPlaylistTracks = (source, id, params = {}) =>
+  axiosClient.get(`${SOURCES[source]}/playlists/${id}/tracks`, { params });
+
+export const fetchAllCatalogPlaylists = (params = {}) =>
+  axiosClient
+    .get("/playlists/catalog", { params })
+    .then((res) => res.data || []);

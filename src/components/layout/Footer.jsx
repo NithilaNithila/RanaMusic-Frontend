@@ -20,34 +20,35 @@ const InstagramIcon = () => (
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-black/20">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <footer className="relative border-t border-black/10 bg-black/[0.03] dark:border-white/10 dark:bg-black/20">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent" />
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           <div>
-            <Link to="/" className="text-lg font-bold text-brand">
+            <Link to="/" className="font-display text-lg font-bold text-brand">
               RanaMusic
             </Link>
-            <p className="mt-3 text-sm text-white/50 leading-relaxed">
+            <p className="mt-3 text-sm text-black/50 leading-relaxed dark:text-white/50">
               Your personal music streaming platform. Discover trending
               tracks, explore albums, and create custom playlists.
             </p>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white mb-3">Quick Links</h3>
+            <h3 className="text-sm font-semibold text-black dark:text-white">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/about" className="text-white/50 hover:text-white transition-colors">
+                <Link to="/about" className="text-black/50 hover:text-black transition-colors dark:text-white/50 dark:hover:text-white">
                   About
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="text-white/50 hover:text-white transition-colors">
+                <Link to="/contact" className="text-black/50 hover:text-black transition-colors dark:text-white/50 dark:hover:text-white">
                   Contact
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-white/50 hover:text-white transition-colors">
+                <Link to="/privacy" className="text-black/50 hover:text-black transition-colors dark:text-white/50 dark:hover:text-white">
                   Privacy Policy
                 </Link>
               </li>
@@ -55,13 +56,13 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white mb-3">Connect</h3>
-            <div className="flex items-center gap-4">
+            <h3 className="mb-3 text-sm font-semibold text-black dark:text-white">Connect</h3>
+            <div className="flex items-center gap-3">
               <a
                 href="https://www.facebook.com/profile.php?id=61593501988328&sk=about_details"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/50 hover:text-white transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-black/5 text-black/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/15 hover:text-brand dark:border-white/10 dark:bg-white/5 dark:text-white/60"
                 aria-label="Facebook"
               >
                 <FacebookIcon />
@@ -70,7 +71,7 @@ export default function Footer() {
                 href="https://x.com/RanaMusic2026"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/50 hover:text-white transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-black/5 text-black/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/15 hover:text-brand dark:border-white/10 dark:bg-white/5 dark:text-white/60"
                 aria-label="Twitter / X"
               >
                 <TwitterIcon />
@@ -79,7 +80,7 @@ export default function Footer() {
                 href="https://www.instagram.com/ranamusic2026/?hl=en"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white/50 hover:text-white transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-black/5 text-black/60 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/15 hover:text-brand dark:border-white/10 dark:bg-white/5 dark:text-white/60"
                 aria-label="Instagram"
               >
                 <InstagramIcon />
@@ -88,8 +89,16 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-white/10 pt-5 text-center text-xs text-white/30">
-          &copy; {new Date().getFullYear()} RanaMusic. All rights reserved. Powered by Jamendo.
+        <div className="mt-10 border-t border-black/10 pt-5 text-center text-xs text-black/30 dark:border-white/10 dark:text-white/30">
+          &copy; {new Date().getFullYear()} RanaMusic. All rights reserved. Powered by{" "}
+          <a
+            href="https://www.jamendo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-black/40 transition-colors hover:text-brand dark:text-white/40"
+          >
+            Jamendo
+          </a>.
         </div>
       </div>
     </footer>
