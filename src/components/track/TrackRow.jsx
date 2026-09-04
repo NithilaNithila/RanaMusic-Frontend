@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
@@ -8,7 +8,7 @@ import Equalizer from "../common/Equalizer.jsx";
 
 const EMPTY_QUEUE = [];
 
-export default function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
+export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
   const navigate = useNavigate();
   const { playTrack, currentTrack, isPlaying, togglePlay, addToQueueNext } = useAudioPlayer();
   const [queued, setQueued] = useState(false);
@@ -135,4 +135,4 @@ export default function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
       </div>
     </motion.div>
   );
-}
+})

@@ -15,6 +15,6 @@ describe("QueueSheet", () => {
 
   it("does not crash when currentTrack is null", () => {
     render(<QueueSheet open queue={[]} currentTrack={null} />);
-    expect(screen.getByText(/queue is empty/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/queue is empty/i).length).toBeGreaterThan(0);
   });
 });

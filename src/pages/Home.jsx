@@ -111,6 +111,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    let active = true;
     setTracks([]);
     setVisibleCount(TRACK_PAGE_SIZE);
     setTrackPage(1);
@@ -130,6 +131,7 @@ export default function Home() {
       getAlbums({ limit: TRACK_PAGE_SIZE, lang: language }),
       getArtists({ limit: TRACK_PAGE_SIZE, lang: language }),
     ]).then(([tRes, aRes, arRes]) => {
+      if (!active) return;
       if (tRes.status === "fulfilled") {
         setTracks(tRes.value.data.results || tRes.value.data || []);
       }
@@ -141,6 +143,7 @@ export default function Home() {
       }
       setLoading(false);
     });
+    return () => { active = false; };
   }, [language]);
 
   const handleShuffle = () => {

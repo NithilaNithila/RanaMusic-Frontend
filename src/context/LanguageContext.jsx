@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export const LANGUAGES = [
   { code: "en", label: "English", native: "English", flag: "🇺🇸" },
@@ -25,8 +25,15 @@ export function LanguageProvider({ children }) {
     window.localStorage.setItem("language", language);
   }, [language]);
 
+  const setLanguageStable = useCallback((...args) => setLanguage(...args), []);
+
+  const value = useMemo(
+    () => ({ language, setLanguage: setLanguageStable }),
+    [language, setLanguageStable]
+  );
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

@@ -9,6 +9,7 @@ import { getPublicPlaylists } from "../api/playlistApi";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import { useDebounce } from "../hooks/useDebounce";
 import { LANGUAGES } from "../context/LanguageContext";
+import { mergePlaylists } from "../utils/helpers";
 
 import Section from "../components/common/Section.jsx";
 import RevealItem from "../components/common/RevealItem.jsx";
@@ -24,21 +25,6 @@ import Input from "../components/common/Input.jsx";
 
 const PAGE_SIZE = 12;
 const MAX_FETCH_ATTEMPTS = 6;
-
-const mergePlaylists = (catalog = [], community = []) => {
-  const seen = new Set();
-  const out = [];
-  [...(Array.isArray(catalog) ? catalog : []), ...(Array.isArray(community) ? community : [])].forEach(
-    (p) => {
-      if (!p) return;
-      const key = p.id ?? p._id;
-      if (!key || seen.has(String(key))) return;
-      seen.add(String(key));
-      out.push(p);
-    }
-  );
-  return out;
-};
 
 const BackIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -371,6 +357,7 @@ export default function LanguageDetail() {
   };
 
   useEffect(() => {
+    let active = true;
     setTracks([]);
     setVisibleCount(PAGE_SIZE);
     setTrackPage(1);
@@ -398,12 +385,11 @@ export default function LanguageDetail() {
       getPopularTracks({ limit: PAGE_SIZE, lang: meta.code }),
       getAlbums({ limit: PAGE_SIZE, lang: meta.code }),
       getArtists({ limit: PAGE_SIZE, lang: meta.code }),
-      // Language playlists come from the unified search across
-      // Spotify / YouTube / Amazon by searching the language name.
       globalSearch(meta.label, { type: "playlist", limit: PAGE_SIZE, offset: 0 }).then(
         (res) => res.data?.playlists || res.data || []
       ),
     ]).then(([tRes, aRes, arRes, pRes]) => {
+      if (!active) return;
       if (tRes.status === "fulfilled") {
         setTracks(tRes.value.data.results || tRes.value.data || []);
       }
@@ -423,7 +409,8 @@ export default function LanguageDetail() {
       }
       setLoading(false);
     });
-  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { active = false; };
+  }, [lang]);
 
   const handleShowMore = async () => {
     if (loadingMore || !hasMoreTracks || !meta) return;

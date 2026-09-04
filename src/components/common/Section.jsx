@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { useReveal } from "../../hooks/useReveal";
 
-export default function Section({ title, subtitle, action, children, className = "" }) {
+function Section({ title, subtitle, action, children, className = "" }) {
   const ref = useReveal();
 
   return (
@@ -19,3 +20,5 @@ export default function Section({ title, subtitle, action, children, className =
     </section>
   );
 }
+
+export default memo(Section);

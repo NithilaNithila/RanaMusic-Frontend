@@ -7,6 +7,15 @@ const DEFAULT_PALETTE = {
 };
 
 const cache = new Map();
+const CACHE_MAX = 200;
+
+function cacheSet(key, value) {
+  if (cache.size >= CACHE_MAX) {
+    const first = cache.keys().next().value;
+    cache.delete(first);
+  }
+  cache.set(key, value);
+}
 
 function parseColor(c) {
   return {
@@ -89,7 +98,7 @@ export function extractPalette(imageUrl) {
         ctx.drawImage(img, 0, 0, W, H);
         const buf = ctx.getImageData(0, 0, W, H).data;
         const palette = averagePalette({ buf, width: W, height: H });
-        cache.set(imageUrl, palette);
+        cacheSet(imageUrl, palette);
         resolve(palette);
       } catch {
         resolve(DEFAULT_PALETTE);

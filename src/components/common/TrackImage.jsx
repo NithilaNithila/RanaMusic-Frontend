@@ -7,6 +7,15 @@ import { imageSrc, handleImageError } from "../../utils/imageFallback";
 // garbage values (whitespace). Hydrate the cover from the Saavn match (same
 // name+artist the audio uses). Cached so each song resolves once.
 const imageCache = new Map();
+const IMAGE_CACHE_MAX = 300;
+
+function cacheSet(key, value) {
+  if (imageCache.size >= IMAGE_CACHE_MAX) {
+    const first = imageCache.keys().next().value;
+    imageCache.delete(first);
+  }
+  imageCache.set(key, value);
+}
 
 const hydrate = (track) => {
   const key = `${String(track?.name || "").toLowerCase()}|${String(track?.artist_name || "").toLowerCase()}`;
@@ -22,44 +31,42 @@ const hydrate = (track) => {
     })
     .then((res) => (res.data && res.data.image ? res.data.image : ""))
     .catch(() => "");
-  imageCache.set(key, p);
+  cacheSet(key, p);
   return p;
 };
 
 export default function TrackImage({ track, alt = "", className, index }) {
   const [src, setSrc] = useState(() => imageSrc(track?.image));
   const hydratedRef = useRef(false);
+  const aliveRef = useRef(true);
 
   useEffect(() => {
-    let alive = true;
+    aliveRef.current = true;
     const base = imageSrc(track?.image);
     setSrc(base);
     hydratedRef.current = false;
 
-    // Skip hydration only when a real image string exists (a whitespace or
-    // blank value falls back to the placeholder and should be hydrated).
     const needsHydration =
       base === DEFAULT_ARTWORK || !String(track?.image || "").trim();
     if (needsHydration && (track?.name || track?.artist_name)) {
       hydrate(track).then((img) => {
-        if (alive && img) {
+        if (aliveRef.current && img) {
           hydratedRef.current = true;
           setSrc(img);
         }
       });
     }
     return () => {
-      alive = false;
+      aliveRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [track?.id, track?.image, track?.name, track?.artist_name]);
 
   const handleError = (e) => {
-    // Dead URL / hotlink 403: try the Saavn cover once before falling back.
     if (!hydratedRef.current && (track?.name || track?.artist_name)) {
       hydratedRef.current = true;
       hydrate(track).then((img) => {
-        if (img) setSrc(img);
+        if (aliveRef.current && img) setSrc(img);
       });
     }
     handleImageError(e);

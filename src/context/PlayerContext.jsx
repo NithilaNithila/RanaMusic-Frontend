@@ -1,4 +1,4 @@
-import { createContext, useRef, useState, useCallback, useEffect } from "react";
+import { createContext, useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { getFavorites, addFavorite, removeFavorite } from "../api/favoriteApi";
 import axiosClient from "../api/axiosClient";
@@ -102,7 +102,8 @@ export function PlayerProvider({ children }) {
       .then((res) => {
         if (!alive) return;
         const serverMap = {};
-        (res.data || []).forEach((f) => {
+        const favorites = Array.isArray(res.data) ? res.data : res.data?.favorites || res.data?.results || [];
+        favorites.forEach((f) => {
           serverMap[String(f.jamendoId)] = trackFromFav(f);
         });
 
@@ -151,10 +152,6 @@ export function PlayerProvider({ children }) {
   const playTrack = useCallback((track, trackQueue = [], startAt = 0) => {
     const audio = audioRef.current;
 
-    // Stop whatever is currently playing before switching tracks. This is
-    // essential for the resolve path below: if the new track has no playable
-    // audio (or resolution fails), the previous track must not keep playing
-    // while the UI shows a different one.
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
@@ -183,14 +180,12 @@ export function PlayerProvider({ children }) {
       return;
     }
 
-    // No playable audio / 30s preview -> ask the backend for a full Saavn
-    // copy, then start playback once it arrives (if still current).
     const reqId = ++playbackReqRef.current;
     resolvePlayableAudio(track).then((playable) => {
-      if (reqId !== playbackReqRef.current) return; // a newer track was chosen
-      if (!playable) return; // nothing resolvable, leave idle (audio already stopped)
+      if (reqId !== playbackReqRef.current) return;
+      if (!playable) return;
       if (playable.audio) start(playable, startAt);
-      else setCurrentTrack(playable); // artwork-only upgrade (no playable audio)
+      else setCurrentTrack(playable);
     });
   }, []);
 
@@ -262,25 +257,25 @@ export function PlayerProvider({ children }) {
   const toggleLike = useCallback(() => {
     if (!currentTrack) return;
     const id = String(currentTrack.id);
-    const isCurrentlyLiked = Boolean(likedTracks[id]);
 
     setLikedTracks((prev) => {
+      const isCurrentlyLiked = Boolean(prev[id]);
       const next = { ...prev };
       if (isCurrentlyLiked) delete next[id];
       else next[id] = currentTrack;
       localStorage.setItem("likedTracks", JSON.stringify(next));
+
+      if (user) {
+        if (isCurrentlyLiked) removeFavorite("track", id).catch(() => {});
+        else addFavorite(favFromTrack(currentTrack)).catch(() => {});
+      }
+
       return next;
     });
-
-    // Persist to the database when signed in
-    if (user) {
-      if (isCurrentlyLiked) removeFavorite("track", id).catch(() => {});
-      else addFavorite(favFromTrack(currentTrack)).catch(() => {});
-    }
-  }, [currentTrack, likedTracks, user]);
+  }, [currentTrack, user]);
 
   const isLiked = currentTrack ? Boolean(likedTracks[String(currentTrack.id)]) : false;
-  const likedList = Object.values(likedTracks);
+  const likedList = useMemo(() => Object.values(likedTracks), [likedTracks]);
 
   const seek = useCallback((time) => {
     audioRef.current.currentTime = time;
@@ -298,50 +293,64 @@ export function PlayerProvider({ children }) {
     const onPause = () => setIsPlaying(false);
     const onTimeUpdate = () => setProgress(audio.currentTime);
     const onLoadedMeta = () => setDuration(audio.duration);
-    const onEnded = () => playNext();
 
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMeta);
-    audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("loadedmetadata", onLoadedMeta);
-      audio.removeEventListener("ended", onEnded);
     };
+  }, []);
+
+  const playNextRef = useRef(playNext);
+  useEffect(() => {
+    playNextRef.current = playNext;
   }, [playNext]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    const onEnded = () => playNextRef.current();
+    audio.addEventListener("ended", onEnded);
+    return () => audio.removeEventListener("ended", onEnded);
+  }, []);
+
+  const value = useMemo(() => ({
+    currentTrack,
+    queue,
+    history,
+    isPlaying,
+    progress,
+    duration,
+    volume,
+    isShuffled,
+    repeatMode,
+    isLiked,
+    likedList,
+    playTrack,
+    togglePlay,
+    pause,
+    playNext,
+    playPrev,
+    addToQueueNext,
+    seek,
+    changeVolume,
+    toggleShuffle,
+    cycleRepeat,
+    toggleLike,
+  }), [
+    currentTrack, queue, history, isPlaying, progress, duration, volume,
+    isShuffled, repeatMode, isLiked, likedList, playTrack, togglePlay,
+    pause, playNext, playPrev, addToQueueNext, seek, changeVolume,
+    toggleShuffle, cycleRepeat, toggleLike,
+  ]);
+
   return (
-    <PlayerContext.Provider
-      value={{
-        currentTrack,
-        queue,
-        history,
-        isPlaying,
-        progress,
-        duration,
-        volume,
-        isShuffled,
-        repeatMode,
-        isLiked,
-        likedList,
-        playTrack,
-        togglePlay,
-        pause,
-        playNext,
-        playPrev,
-        addToQueueNext,
-        seek,
-        changeVolume,
-        toggleShuffle,
-        cycleRepeat,
-        toggleLike,
-      }}
-    >
+    <PlayerContext.Provider value={value}>
       {children}
     </PlayerContext.Provider>
   );

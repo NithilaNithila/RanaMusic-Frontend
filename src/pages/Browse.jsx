@@ -9,6 +9,7 @@ import { globalSearch } from "../api/searchApi";
 import { getPublicPlaylists } from "../api/playlistApi";
 import { useLanguage } from "../context/LanguageContext";
 import { useDebounce } from "../hooks/useDebounce";
+import { mergePlaylists, toList } from "../utils/helpers";
 import Input from "../components/common/Input.jsx";
 import TrackCard from "../components/track/TrackCard.jsx";
 import RevealItem from "../components/common/RevealItem.jsx";
@@ -18,20 +19,6 @@ import PlaylistCard from "../components/playlist/PlaylistCard.jsx";
 import ShowMoreButton from "../components/common/ShowMoreButton.jsx";
 
 const PAGE_SIZE = 12;
-
-// Combines catalog playlists (id + source) with community/public playlists
-// (created by any app user) into one deduplicated list.
-const mergePlaylists = (catalog = [], community = []) => {
-  const seen = new Set();
-  const out = [];
-  [...catalog, ...community].forEach((p) => {
-    const key = p.id ?? p._id;
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    out.push(p);
-  });
-  return out;
-};
 
 // Loads public playlists created by any user, or [] on failure.
 const loadCommunityPlaylists = async (query = "", params = {}) => {

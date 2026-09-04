@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const ThemeContext = createContext({ theme: "dark", toggleTheme: () => {} });
 
@@ -27,16 +27,18 @@ export function ThemeProvider({ children }) {
     meta.content = theme === "dark" ? "#0f1319" : "#f4f7fb";
   }, [theme]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const root = document.documentElement;
     root.classList.add("theme-anim");
     window.clearTimeout(root.__themeAnimTimer);
     root.__themeAnimTimer = window.setTimeout(() => root.classList.remove("theme-anim"), 400);
     setTheme((t) => (t === "dark" ? "light" : "dark"));
-  };
+  }, []);
+
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

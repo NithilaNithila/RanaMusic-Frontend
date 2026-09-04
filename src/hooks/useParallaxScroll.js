@@ -1,19 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-/**
- * MainLayout scrolls its <main className="overflow-y-auto">, not the
- * window — so window.scrollY doesn't describe real scroll position.
- * Walk up to find whichever ancestor is actually scrolling.
- */
-function getScrollParent(el) {
-  let node = el?.parentElement;
-  while (node) {
-    const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-    node = node.parentElement;
-  }
-  return window;
-}
+import { getScrollParent } from "../utils/helpers";
 
 /**
  * Tracks the live scrollTop (px) of whichever ancestor actually scrolls.

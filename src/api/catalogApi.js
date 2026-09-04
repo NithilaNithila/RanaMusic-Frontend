@@ -18,4 +18,10 @@ export const getCatalogPlaylistTracks = (source, id, params = {}) =>
 export const fetchAllCatalogPlaylists = (params = {}) =>
   axiosClient
     .get("/playlists/catalog", { params })
-    .then((res) => res.data || []);
+    .then((res) => {
+      const d = res.data;
+      if (Array.isArray(d)) return d;
+      if (Array.isArray(d?.playlists)) return d.playlists;
+      if (Array.isArray(d?.results)) return d.results;
+      return [];
+    });

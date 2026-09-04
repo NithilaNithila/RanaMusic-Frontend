@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { getScrollParent } from "../../utils/helpers";
 
 // Vite only bundles the file *list* at build time (no eager import), so
 // the 240+ frames are emitted as static assets but never downloaded up
@@ -15,22 +16,6 @@ const FALLBACK_FRAME = 0; // clean, full-guitar shot
 const SCROLL_MULTIPLIER = 2; // wrapper = 2 viewports tall = the scrub runway
 const PREFETCH_AHEAD = 5; // fetch frames this far past the scrub position
 const PREFETCH_BEHIND = 1; // ...and this far behind it
-
-/**
- * MainLayout scrolls its <main className="overflow-y-auto">, not the
- * window — so window.scrollY / window.innerHeight don't describe this
- * page's real scroll position or viewport. Walk up to find whichever
- * ancestor is actually scrolling.
- */
-function getScrollParent(el) {
-  let node = el?.parentElement;
-  while (node) {
-    const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-    node = node.parentElement;
-  }
-  return window;
-}
 
 /**
  * Full-bleed, scroll-scrubbed image-sequence showcase for the Home page.
@@ -57,6 +42,7 @@ export default function ScrollShowcase({
   const requestedRef = useRef(new Set());
   const frameRef = useRef(-1);
   const rafRef = useRef(null);
+  const aliveRef = useRef(true);
 
   const [loadedCount, setLoadedCount] = useState(0);
   const [ready, setReady] = useState(false);
@@ -96,6 +82,7 @@ export default function ScrollShowcase({
         const img = new Image();
         img.src = url;
         img.onload = () => {
+          if (!aliveRef.current) return;
           imagesRef.current[index] = img;
           setLoadedCount((c) => c + 1);
           if (index === FALLBACK_FRAME) setReady(true);
@@ -133,11 +120,15 @@ export default function ScrollShowcase({
   };
 
   useEffect(() => {
+    aliveRef.current = true;
     if (TOTAL === 0 && import.meta.env.DEV) {
       console.warn("[ScrollShowcase] No frames matched '../../assets/frame_*.jpg'.");
     }
     setReduceMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     ensureWindow(FALLBACK_FRAME);
+    return () => {
+      aliveRef.current = false;
+    };
   }, []);
 
   // Keep the wrapper/panel sized to the REAL scroll viewport (main's

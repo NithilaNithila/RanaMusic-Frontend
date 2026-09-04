@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { getMyPlaylists, deletePlaylist, getPublicPlaylists } from "../api/playlistApi";
 import { globalSearch } from "../api/searchApi";
 import { useDebounce } from "../hooks/useDebounce";
+import { toList, mergePlaylists } from "../utils/helpers";
 import PlaylistCard from "../components/playlist/PlaylistCard.jsx";
 import CreatePlaylistModal from "../components/playlist/CreatePlaylistModal.jsx";
 import Section from "../components/common/Section.jsx";
@@ -16,31 +17,6 @@ const CATALOG_LIMIT = 60;
 const PAGE_SIZE = 12;
 
 const GRID = "card-grid";
-
-const toList = (res) => {
-  if (res?.data?.results) return res.data.results;
-  if (res?.data) return res.data;
-  return Array.isArray(res) ? res : [];
-};
-
-const idKey = (x) => {
-  if (!x) return null;
-  if (x.id != null) return x.id;
-  if (x._id != null) return x._id;
-  return null;
-};
-
-const mergePlaylists = (catalog = [], community = []) => {
-  const seen = new Set();
-  const out = [];
-  [...catalog, ...community].forEach((p) => {
-    const k = idKey(p);
-    if (!k || seen.has(k)) return;
-    seen.add(k);
-    out.push(p);
-  });
-  return out;
-};
 
 const loadCommunityPlaylists = async (val, params) => {
   try {
@@ -232,9 +208,11 @@ export default function Library() {
     ])
       .then(([catalog, community]) => {
         if (!active) return;
+        const qLower = debouncedSearch.trim().toLowerCase();
+        const matchName = (name) => !qLower || (name || "").toLowerCase().includes(qLower);
         const combined = mergePlaylists(
           mergePlaylists(catalog, community),
-          playlists.filter((p) => byName(p.name))
+          playlists.filter((p) => matchName(p.name))
         );
         combined.forEach((p) => {
           const k = idKey(p);
@@ -252,8 +230,7 @@ export default function Library() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+  }, [debouncedSearch, playlists]);
 
   const loadMoreSearchPlaylists = async () => {
     if (!searching || searchLoading || searchLoadingMore) return;
@@ -270,9 +247,11 @@ export default function Library() {
           ),
           loadCommunityPlaylists(trimmed, { limit: PAGE_SIZE, offset }),
         ]);
+        const qLower = debouncedSearch.trim().toLowerCase();
+        const matchName = (name) => !qLower || (name || "").toLowerCase().includes(qLower);
         const combined = mergePlaylists(
           mergePlaylists(catalog, community),
-          playlists.filter((p) => byName(p.name))
+          playlists.filter((p) => matchName(p.name))
         );
         if (!combined.length) break;
         for (const p of combined) {

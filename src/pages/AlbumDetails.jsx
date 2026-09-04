@@ -23,7 +23,7 @@ export default function AlbumDetails() {
       .then(([albumRes, tracksRes]) => {
         if (!active) return;
         setAlbum(albumRes.data);
-        setTracks(tracksRes.data.results || tracksRes.data);
+        setTracks(tracksRes.data?.results || tracksRes.data || []);
       })
       .catch(() => {
         // Transient failure: keep album null (renders "Album not found")

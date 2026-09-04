@@ -4,6 +4,7 @@ import { getPopularTracks } from "../api/trackApi";
 import { globalSearch } from "../api/searchApi";
 import { getPublicPlaylists } from "../api/playlistApi";
 import { useDebounce } from "../hooks/useDebounce";
+import { idKey, toList, mergePlaylists } from "../utils/helpers";
 import TrackList from "../components/track/TrackList.jsx";
 import AlbumGrid from "../components/album/AlbumGrid.jsx";
 import ArtistGrid from "../components/artist/ArtistGrid.jsx";
@@ -54,12 +55,6 @@ const PlaylistIcon = (
   </svg>
 );
 
-const toList = (res) => {
-  if (res?.data?.results) return res.data.results;
-  if (res?.data) return res.data;
-  return Array.isArray(res) ? res : [];
-};
-
 const trackKey = (t) => {
   if (!t || typeof t !== "object") return null;
   if (t.id != null) return `id:${t.id}`;
@@ -67,27 +62,6 @@ const trackKey = (t) => {
   return `n:${String(t.name).trim().toLowerCase()}|${String(t.artist_name || "")
     .trim()
     .toLowerCase()}`;
-};
-
-const idKey = (x) => {
-  if (!x) return null;
-  if (x.id != null) return x.id;
-  if (x._id != null) return x._id;
-  return null;
-};
-
-// Combines catalog playlists (id + source) with community/public playlists
-// (_id, created by any user) into one deduplicated list.
-const mergePlaylists = (catalog = [], community = []) => {
-  const seen = new Set();
-  const out = [];
-  [...catalog, ...community].forEach((p) => {
-    const k = idKey(p);
-    if (!k || seen.has(k)) return;
-    seen.add(k);
-    out.push(p);
-  });
-  return out;
 };
 
 // Loads community playlists (public playlists created by any user), or [] on failure.
@@ -161,7 +135,7 @@ export default function Search() {
   useEffect(() => {
     const q = params.get("q");
     if (q != null) setQuery(q);
-  }, [params]);
+  }, [params.get("q")]);
 
   const pageRef = useRef(1);
   const busyRef = useRef(false);
