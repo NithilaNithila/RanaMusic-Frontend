@@ -29,7 +29,9 @@ const hydrate = (track) => {
         id: track?.id || "",
       },
     })
-    .then((res) => (res.data && res.data.image ? res.data.image : ""))
+    // Route the hydrated artwork through imageSrc so relative /api/ proxy
+    // paths are rewritten to the real API origin (same fix as the base image).
+    .then((res) => (res.data && res.data.image ? imageSrc(res.data.image) : ""))
     .catch(() => "");
   cacheSet(key, p);
   return p;

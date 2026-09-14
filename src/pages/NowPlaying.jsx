@@ -367,7 +367,7 @@ export default function NowPlaying() {
       transition={{ duration: 0.4, ease: "easeOut" }}
       aria-label="Now playing screen"
     >
-      <NowPlayingBackground imageUrl={track.image} />
+      <NowPlayingBackground imageUrl={src} />
 
       {/* ————— Flat header ————— */}
       <motion.header {...step(0, 0.1)} className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 pt-5 sm:px-8 sm:pt-6">

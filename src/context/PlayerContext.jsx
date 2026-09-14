@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { getFavorites, addFavorite, removeFavorite } from "../api/favoriteApi";
 import axiosClient from "../api/axiosClient";
 import { sameTrack } from "../utils/helpers";
+import { apiOrigin } from "../utils/imageFallback";
 
 // Resolve relative audio paths to an absolute URL the <audio> element can
 // fetch.  In dev the page lives on :5173 but the backend is on :5000, so a
@@ -12,17 +13,6 @@ import { sameTrack } from "../utils/helpers";
 // The API client (axiosClient) already knows the real backend base via
 // VITE_API_BASE_URL; audio must use the SAME origin. Prefer it, then fall
 // back to the hardcoded dev default.
-const apiOrigin = () => {
-  const base = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-  if (base) {
-    const m = base.match(/^(https?:\/\/[^/]+)/);
-    if (m) return m[1];
-  }
-  const host = globalThis.location?.hostname;
-  if (host && !/^(localhost|127\.0\.0\.1)$/.test(host)) return ""; // same-origin proxy
-  const port = import.meta.env.VITE_API_PORT || "5000";
-  return `http://${host || "localhost"}:${port}`;
-};
 
 const resolveAudioUrl = (url) => {
   if (!url) return url;
@@ -234,6 +224,9 @@ export function PlayerProvider({ children }) {
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
+    // Tear down any active YouTube embed immediately: a stale iframe must not
+    // keep playing while the new track resolves (or fails to resolve).
+    setYoutubeVideoId(null);
     setProgress(0);
     setDuration(0);
     setIsPlaying(false);
@@ -257,7 +250,15 @@ export function PlayerProvider({ children }) {
     // The <YouTubePlayerBridge /> mounts the iframe, autoplays it, and feeds
     // progress/duration/state back through the context value below.
     const startYoutube = (playable) => {
-      setYoutubeVideoId(playable.videoId || playable.id);
+      const videoId = playable.videoId;
+      // A provider id (e.g. an Amazon ASIN) is NOT a YouTube id — only kick
+      // off the embed when the resolver actually handed back a real videoId.
+      if (!videoId) {
+        setPlaybackError(`${playable.name || "This track"} is unavailable in any source`);
+        setIsPlaying(false);
+        return;
+      }
+      setYoutubeVideoId(videoId);
       setCurrentTrack(playable);
       setDuration(0);
       setProgress(0);
@@ -299,6 +300,7 @@ export function PlayerProvider({ children }) {
       // No playable copy anywhere (full resolve + Saavn/YT fallbacks failed).
       // Surface the failure and auto-skip to the next track instead of
       // stranding the player on a dead track with no sound and no way out.
+      setYoutubeVideoId(null);
       setPlaybackError(`${track.name || "This track"} is unavailable in any source`);
       const idx = trackQueue.findIndex((t) => sameTrack(t, track));
       const next = trackQueue[idx + 1];

@@ -7,22 +7,43 @@ const YT_STATE_PAUSED = 2;
 const YT_STATE_ENDED = 0;
 
 let apiPromise = null;
+// If the IFrame API script never signals ready (offline, ad-blocker, CDN
+// hiccup) the embed must still settle instead of hanging "playing" forever.
+const IFRAME_API_TIMEOUT_MS = 8000;
 
 // Loads the official YouTube IFrame API script exactly once, resolving with
-// the global YT namespace when it's ready.
+// the global YT namespace when it's ready. Always settles: an already-present
+// API, a script load error, or the timeout all resolve (with null when the API
+// is unavailable) so the bridge never blocks on an unresolved promise.
 function loadIframeApi() {
   if (apiPromise) return apiPromise;
-  apiPromise = new Promise((resolve) => {
+  if (globalThis.YT && typeof globalThis.YT.Player === "function") {
+    apiPromise = Promise.resolve(globalThis.YT);
+    return apiPromise;
+  }
+  const attempt = new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(globalThis.YT || null), IFRAME_API_TIMEOUT_MS);
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       if (typeof prev === "function") prev();
-      resolve(window.YT);
+      clearTimeout(timer);
+      resolve(globalThis.YT || null);
     };
     const tag = document.createElement("script");
+    tag.onerror = () => {
+      clearTimeout(timer);
+      resolve(globalThis.YT || null);
+    };
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
   });
-  return apiPromise;
+  apiPromise = attempt;
+  attempt.then((yt) => {
+    // A failed load shouldn't poison the cache for the rest of the session:
+    // a later track can retry while the network is back.
+    if (!yt && apiPromise === attempt) apiPromise = null;
+  });
+  return attempt;
 }
 
 // Dedicated IFrame API messenger (ignored by ad units on the embed).
@@ -38,12 +59,16 @@ export default function YouTubePlayerBridge() {
     unregisterYoutube,
     reportYoutube,
     playNext,
+    isPlaying,
   } = useAudioPlayer();
 
   const containerRef = useRef(null);
   const playerRef = useRef();
   const playNextRef = useRef(playNext);
   const volumeRef = useRef(volume);
+  // Desired play state, read at onReady time so a pause issued while the
+  // iframe was still loading isn't overridden by the autoplay flag below.
+  const playingRef = useRef(isPlaying);
 
   useEffect(() => {
     playNextRef.current = playNext;
@@ -52,6 +77,10 @@ export default function YouTubePlayerBridge() {
   useEffect(() => {
     volumeRef.current = volume;
   }, [volume]);
+
+  useEffect(() => {
+    playingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!youtubeVideoId) {
@@ -67,6 +96,14 @@ export default function YouTubePlayerBridge() {
       try {
         const YT = await loadIframeApi();
         if (cancelled || !youtubeVideoId) return;
+
+        if (!YT) {
+          // IFrame API unavailable (offline/ad-blocked/blocked host): give up
+          // on the embed so the UI doesn't spin "playing" with no audio.
+          unregisterYoutube();
+          reportYoutube({ playing: false });
+          return;
+        }
 
         const playerEl = document.createElement("div");
         containerRef.current.appendChild(playerEl);
@@ -98,8 +135,14 @@ export default function YouTubePlayerBridge() {
                 seekTo: (t) => player.seekTo(t, true),
                 setVolume: (v) => player.setVolume(v * 100),
               });
-              player.playVideo();
-              reportYoutube({ playing: true });
+              if (playingRef.current) {
+                player.playVideo();
+                reportYoutube({ playing: true });
+              } else {
+                // Paused (or superseded) while the iframe loaded — don't let
+                // the autoplay flag override that intent.
+                reportYoutube({ playing: false });
+              }
             },
             onStateChange: (e) => {
               if (cancelled) return;
@@ -136,6 +179,7 @@ export default function YouTubePlayerBridge() {
         };
       } catch {
         /* IFrame API blocked/unavailable — treat the track as unavailable */
+        if (!cancelled) unregisterYoutube();
       }
     };
 
