@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import { formatDuration } from "../../utils/formatDuration";
+import { sameTrack } from "../../utils/helpers";
 import TrackImage from "../common/TrackImage.jsx";
 import Equalizer from "../common/Equalizer.jsx";
 
@@ -13,7 +14,7 @@ export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
   const { playTrack, currentTrack, isPlaying, togglePlay, addToQueueNext } = useAudioPlayer();
   const [queued, setQueued] = useState(false);
   const queuedTimerRef = useRef(null);
-  const isCurrent = currentTrack?.id === track.id;
+  const isCurrent = sameTrack(currentTrack, track);
 
   useEffect(() => {
     return () => {

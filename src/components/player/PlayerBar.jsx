@@ -56,6 +56,7 @@ export default function PlayerBar() {
   const {
     currentTrack: track,
     isPlaying,
+    playbackError,
     progress,
     duration,
     volume,
@@ -106,6 +107,11 @@ export default function PlayerBar() {
             <span className="block max-w-[calc(100vw-19rem)] truncate text-xs text-black/45 dark:text-white/45 sm:max-w-[24rem]">
               {track.artist_name}
             </span>
+            {playbackError && (
+              <span className="block max-w-[calc(100vw-19rem)] truncate text-xs text-red-500 dark:text-red-400 sm:max-w-[24rem]">
+                {playbackError}
+              </span>
+            )}
           </span>
         </button>
 

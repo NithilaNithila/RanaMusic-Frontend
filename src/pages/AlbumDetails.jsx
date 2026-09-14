@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getAlbumById, getAlbumTracks } from "../api/albumApi";
+import { useParams, useSearchParams } from "react-router-dom";
+import {
+  getAlbumById,
+  getAlbumTracks,
+  getCatalogAlbum,
+  getCatalogAlbumTracks,
+  isCatalogAlbumSource,
+} from "../api/albumApi";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import TrackList from "../components/track/TrackList.jsx";
 import Loader from "../components/common/Loader.jsx";
@@ -9,6 +15,10 @@ import { imageSrc, handleImageError } from "../utils/imageFallback";
 
 export default function AlbumDetails() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  // Albums from search are provider-tagged (?source=spotify|amazon); the
+  // default Saavn route cannot open Amazon/Spotify albums (it 404s).
+  const source = isCatalogAlbumSource(searchParams.get("source")) ? searchParams.get("source") : null;
   const [album, setAlbum] = useState(null);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +29,9 @@ export default function AlbumDetails() {
     setLoading(true);
     setAlbum(null);
     setTracks([]);
-    Promise.all([getAlbumById(id), getAlbumTracks(id)])
+    const getAlbum = source ? getCatalogAlbum : getAlbumById;
+    const getTracks = source ? getCatalogAlbumTracks : getAlbumTracks;
+    Promise.all([getAlbum(source, id), getTracks(source, id)])
       .then(([albumRes, tracksRes]) => {
         if (!active) return;
         setAlbum(albumRes.data);
@@ -36,7 +48,7 @@ export default function AlbumDetails() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, source]);
 
   if (loading) return <Loader size="lg" />;
   if (!album) return <p className="text-black/50 dark:text-white/50">Album not found.</p>;

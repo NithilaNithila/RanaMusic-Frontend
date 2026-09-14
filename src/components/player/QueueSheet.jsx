@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import TrackImage from "../common/TrackImage.jsx";
+import { sameTrack } from "../../utils/helpers";
 
 const EqIcon = () => (
   <span className="flex items-end gap-[2px]">
@@ -17,8 +18,8 @@ export default function QueueSheet({ open, onClose, queue, currentTrack, onPlay 
   if (!open) return null;
 
   const list = Array.isArray(queue) ? queue : [];
-  const currentIndex = currentTrack ? list.findIndex((t) => t.id === currentTrack.id) : -1;
-  const upNext = list.filter((t) => t.id !== currentTrack?.id);
+  const currentIndex = currentTrack ? list.findIndex((t) => sameTrack(t, currentTrack)) : -1;
+  const upNext = list.filter((t) => !sameTrack(t, currentTrack));
   const nowPlaying = currentIndex >= 0 ? list[currentIndex] : currentTrack;
 
   return (

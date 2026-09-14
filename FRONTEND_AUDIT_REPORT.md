@@ -194,3 +194,52 @@ Output: dist/ — 400.65 kB main JS (gzip: 131.81 kB)
 5. **Bundle analysis** — Run `npx vite-bundle-visualizer` to identify heavy dependencies.
 6. **Code splitting** — Add `React.lazy()` + `<Suspense>` for route-level pages (Home is 41 kB).
 7. **Accessibility pass** — Add `aria-label` to all interactive elements, skip-to-content link, and contrast fixes.
+
+---
+
+## 11. Re-audit (2026-09-13)
+
+Fresh security + code-quality pass. Build ✓ (11.5s), tests 25/25 passing.
+
+### CRITICAL — auth pages crash at render time
+
+`const errorId = ...` was pasted **inside** the `<form>` JSX instead of the component body:
+- `Login.jsx:75` — the statement renders as literal text on the page, and `aria-describedby={errorId}` (`Login.jsx:76,85`) references an undeclared identifier → `ReferenceError` on render → whole login page bubbles to the root `<ErrorBoundary>`.
+- `Register.jsx:83` — identical bug (`aria-describedby` at :84/:94).
+
+Verified by esbuild transform. Build/tests still pass because the error only fires when the page renders. **Fix:** hoist `const errorId = ...` into the component body (or `useId()`).
+
+### HIGH
+
+| # | Finding | Location |
+|---|---------|----------|
+| H1 | JWT in `localStorage`, auto-attached as `Authorization: Bearer` on every request. Any injected script (see H2) can read the full session token. httpOnly cookie is the durable fix; sessionStorage + short TTL is the mitigant. | `api/axiosClient.js:22-26`, `context/AuthContext.jsx:44-53` |
+| H2 | Cross-account favorite leak: guest `likedTracks` merge-pushed to the server on **every** login; `logout` never clears `likedTracks`. Device A's guest likes land in whichever account logs in next. | `context/PlayerContext.jsx:133-169`, `AuthContext.jsx:58-62` |
+| H3 | Side effects inside a state updater: `localStorage.setItem` + `addFavorite`/`removeFavorite` network calls run inside `setLikedTracks((prev) => {…})`. React 18 StrictMode double-invokes updaters in dev → duplicate favorite POST/DELETE + duplicate writes. | `context/PlayerContext.jsx:312-325` |
+
+### MEDIUM
+- **M1** `constants.js:29-31` → `https://apkpure.net/.../com.ranamusic` as the "official" Download App link (`Navbar.jsx:217,432`). Unverifiable third-party APK — supply-chain vector. Use a store listing you control.
+- **M2** Any 401 silently wipes the session with no refresh attempt and no notice (`axiosClient.js:36-47`) — transient 401 = user logged out mid-session.
+- **M3** Google AdSense script (`index.html:14`) runs with full page privileges and **no CSP anywhere**. Combined with H1, a compromised ad script reads `localStorage.token`. Add CSP allowing `pagead2.googlesyndication.com`.
+- **M4** Provider-supplied `url` used directly as `href` (`ArtistCard.jsx:13-16`). Enforce `https:` scheme before use.
+- **M5** "Audio quality" picker (`NowPlaying.jsx:169-173`) is purely cosmetic — the backend serves one format; the toast claims a quality was enabled.
+- **M6** `Login.jsx`/`Register.jsx` error message `aria-describedby` ids collide with the crash bug above — covered by C1.
+
+### LOW
+- Space-key global handler hijacks focused buttons (`NowPlaying.jsx:195-208`) — ignore when `e.target.closest("button")`.
+- Share toast says "link copied" but copies `"name — artist"` text (`NowPlaying.jsx:266-274`).
+- `Library.jsx:322-324` static "Last updated today" label is misleading.
+- Sheets/modals have `aria-modal` but no focus trap/restore (`Modal.jsx`, `QueueSheet.jsx`, `LyricsSheet.jsx`).
+- `Search.jsx:148-160` two-way `?q=` effects ping-pong one redundant render on deep-link.
+
+### INFO
+- Unresolvable whole-queue cascade: N resolve calls + N error notices before giving up (`PlayerContext.jsx:220-240`).
+- Backend URL baked into `vite.config.js` proxy + prod bundle (`VITE_API_BASE_URL`) — rebuild needed to move hosts.
+- `Contact.jsx` submit flips local state only — no message is actually sent.
+- Repo hygiene: stray untracked empty file `0` at root; untracked `.eslintrc.cjs`/`prettier.config.js`/`eslint-plugin-react-hooks.js` (active config that should be committed, or dropped).
+
+### Verified clean
+No secrets in source; `.env`/`.env.*` gitignored; no `dangerouslySetInnerHTML`/`eval`/`innerHTML` (lyrics + search rendered via React escaping only); retry logic GET-only, bounded; unmount guards + timer/listener cleanups confirmed; external links use `rel="noopener noreferrer"`; no CSP is the one gap above security-hygiene.
+
+### Dependencies (2026-09-13)
+`npm audit`: **4 vulnerabilities — all build-time/dev-tooling** (browserslist HIGH OOM, baseline-browser-mapping moderate DoS, esbuild/vite moderate dev-server request issue). Not exposed in the prod bundle. `npm audit fix` (in-range, non-breaking) addresses browserslist/baseline; `esbuild`/`vite` needs `--force` → vite 5→8 (breaking, defer; dev-server-only risk).

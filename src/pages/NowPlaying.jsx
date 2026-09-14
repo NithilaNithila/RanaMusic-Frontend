@@ -196,6 +196,9 @@ export default function NowPlaying() {
     const onKey = (e) => {
       const tag = e.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Don't steal Space from an element the user is actually focusing (a
+      // button press should activate it, not pause/play the music).
+      if (e.target && e.target.closest && e.target.closest("button")) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();

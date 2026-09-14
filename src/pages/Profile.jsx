@@ -4,6 +4,7 @@ import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
 import { getMyPlaylists, deletePlaylist } from "../api/playlistApi";
+import { sameTrack } from "../utils/helpers";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
 import TrackImage from "../components/common/TrackImage.jsx";
 import Equalizer from "../components/common/Equalizer.jsx";
@@ -365,7 +366,7 @@ export default function Profile() {
             className="flex flex-col gap-1"
           >
             {likedList.map((t) => {
-              const isCurrent = currentTrack?.id === t.id;
+              const isCurrent = sameTrack(currentTrack, t);
               return (
                 <motion.button
                   key={t.id}

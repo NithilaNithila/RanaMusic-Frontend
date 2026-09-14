@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import Input from "../components/common/Input.jsx";
@@ -46,6 +46,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const errorId = useId();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -79,8 +80,8 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input name="username" placeholder="Username" icon={UserIcon} value={form.username} onChange={handleChange} required />
-          <Input type="email" name="email" placeholder="Email" icon={MailIcon} value={form.email} onChange={handleChange} required />
+          <Input name="username" placeholder="Username" icon={UserIcon} value={form.username} onChange={handleChange} required aria-describedby={errorId} />
+          <Input type="email" name="email" placeholder="Email" icon={MailIcon} value={form.email} onChange={handleChange} required aria-describedby={errorId} />
           <Input
             type={showPassword ? "text" : "password"}
             name="password"
@@ -89,7 +90,8 @@ export default function Register() {
             value={form.password}
             onChange={handleChange}
             required
-            minLength={6}
+            minLength={8}
+            aria-describedby={errorId}
             rightSlot={
               <button
                 type="button"
@@ -103,7 +105,7 @@ export default function Register() {
             }
           />
           {error && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
+            <p id={errorId} className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
           )}
           <Button type="submit" disabled={loading} className="mt-1 w-full">
             {loading ? "Creating account..." : "Register"}

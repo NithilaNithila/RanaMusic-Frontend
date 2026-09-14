@@ -3,13 +3,14 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import { formatDuration } from "../../utils/formatDuration";
+import { sameTrack } from "../../utils/helpers";
 import TrackImage from "../common/TrackImage.jsx";
 import Equalizer from "../common/Equalizer.jsx";
 
 export default memo(function TrackCard({ track, queue = [], index = 0 }) {
   const navigate = useNavigate();
   const { playTrack, currentTrack, isPlaying, togglePlay } = useAudioPlayer();
-  const isCurrent = currentTrack?.id === track.id;
+  const isCurrent = sameTrack(currentTrack, track);
   const isPlayingHere = isCurrent && isPlaying;
 
   const handleClick = () => {

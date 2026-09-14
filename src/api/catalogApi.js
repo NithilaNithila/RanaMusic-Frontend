@@ -1,6 +1,7 @@
 import axiosClient from "./axiosClient";
 
 const SOURCES = {
+  saavn: "/saavn",
   spotify: "/spotify",
   ytmusic: "/ytmusic",
   amazon: "/amazon",

@@ -4,10 +4,18 @@ import { Link } from "react-router-dom";
 import { imageSrc, handleImageError } from "../../utils/imageFallback";
 
 function ArtistCard({ artist, index = 0 }) {
+  // YT Music artist rows carry the native channel id; the app's /artists/:id
+  // route is Saavn-only, so point those at the channel (new tab) instead of a
+  // 404 page. Saavn / Spotify / Amazon rows keep the in-app route.
+  // Only provider URLs with a safe https: scheme become external links — a
+  // javascript:/data:/http: value falls back to the inert in-app link.
+  const isSafeHttps = (u) => /^https:\/\//i.test(String(u || ""));
+  const isYtChannel = artist?.source === "ytmusic" && isSafeHttps(artist.url);
+  const Wrapper = isYtChannel ? "a" : Link;
   return (
     <motion.div whileTap={{ scale: 0.97 }} className="h-full">
-      <Link
-        to={`/artists/${artist.id}`}
+      <Wrapper
+        {...(isYtChannel ? { href: artist.url, target: "_blank", rel: "noopener noreferrer" } : { to: `/artists/${artist.id}` })}
         className="group relative block h-full overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-4 text-center shadow-lg shadow-black/[0.06] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/[0.12] dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-brand/30 dark:hover:bg-white/[0.09] dark:hover:shadow-black/40"
       >
         {/* Soft brand glow behind avatar on hover */}
@@ -31,7 +39,7 @@ function ArtistCard({ artist, index = 0 }) {
         <p className="truncate px-1 text-[13px] font-semibold leading-tight transition-colors group-hover:text-brand">
           {artist.name}
         </p>
-      </Link>
+      </Wrapper>
     </motion.div>
   );
 }

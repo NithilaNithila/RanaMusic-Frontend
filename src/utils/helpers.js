@@ -10,6 +10,22 @@ export const idKey = (x) => {
 };
 
 /**
+ * Stable identity key for PLAYABLE TRACKS. Provider ids (Saavn/Spotify/
+ * YouTube/Amazon) are only unique within their own catalog, so the key is
+ * scoped by `source` — no one provider's track can be mistaken for another's.
+ */
+export const trackKey = (t) => {
+  if (!t) return "";
+  return t.source ? `${String(t.source)}:${String(t.id)}` : String(t.id);
+};
+
+/**
+ * Comparator used for queue / history matching. Falls back to raw id equality
+ * for legacy tracks without a `source`.
+ */
+export const sameTrack = (a, b) => trackKey(a) === trackKey(b);
+
+/**
  * Normalises an API response into a flat array.
  * Handles { data: { results: [...] } }, { data: [...] }, and bare arrays.
  */

@@ -18,6 +18,13 @@ const MAX_RESULTS = 500; // Hard ceiling per category
 
 const CATS = ["tracks", "albums", "artists", "playlists"];
 
+const SOURCES = [
+  { key: "saavn", label: "Saavn" },
+  { key: "spotify", label: "Spotify" },
+  { key: "ytmusic", label: "YouTube Music" },
+  { key: "amazon", label: "Amazon" },
+];
+
 const SearchIcon = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <circle cx="11" cy="11" r="7" />
@@ -116,7 +123,7 @@ function Section({ icon, title, count, onMore, loading, children }) {
 }
 
 export default function Search() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [tracks, setTracks] = useState([]);
   const [albums, setAlbums] = useState([]);
@@ -127,6 +134,12 @@ export default function Search() {
   const [shown, setShown] = useState(() => ({ tracks: PAGE_SIZE, albums: PAGE_SIZE, artists: PAGE_SIZE, playlists: PAGE_SIZE }));
   const [hasMore, setHasMore] = useState(() => ({ tracks: false, albums: false, artists: false, playlists: false }));
   const [recHasMore, setRecHasMore] = useState(false);
+  // Per-provider track groups ({ saavn: [], spotify: [], ytmusic: [], amazon: [] })
+  // served by the backend alongside the merged list. null = old backend (no
+  // tracksBySource) → fall back to the single merged Tracks section.
+  const [trackSources, setTrackSources] = useState(null);
+  const [srcShown, setSrcShown] = useState(() => ({ saavn: PAGE_SIZE, spotify: PAGE_SIZE, ytmusic: PAGE_SIZE, amazon: PAGE_SIZE }));
+  const [srcHasMore, setSrcHasMore] = useState(() => ({ saavn: false, spotify: false, ytmusic: false, amazon: false }));
   const debouncedQuery = useDebounce(query, 400);
   const searching = Boolean(debouncedQuery.trim());
 
@@ -137,8 +150,18 @@ export default function Search() {
     if (q != null) setQuery(q);
   }, [params.get("q")]);
 
+  // Keep the ?q= URL param in sync with the input so the query survives
+  // leaving for Now Playing and coming back (the page remounts and restores
+  // the same results — and the now-playing highlight along with them).
+  useEffect(() => {
+    const q = query.trim();
+    setParams(q ? { q: query } : {}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
   const pageRef = useRef(1);
   const busyRef = useRef(false);
+  const queryRef = useRef(debouncedQuery);
   const sentinelRef = useRef(null);
 
   // First page whenever the query changes (covers both modes)
@@ -149,10 +172,14 @@ export default function Search() {
     setAlbums([]);
     setArtists([]);
     setPlaylists([]);
+    setTrackSources(null);
+    setSrcShown({ saavn: PAGE_SIZE, spotify: PAGE_SIZE, ytmusic: PAGE_SIZE, amazon: PAGE_SIZE });
+    setSrcHasMore(allFalse());
     setHasMore(allFalse());
     setShown({ tracks: PAGE_SIZE, albums: PAGE_SIZE, artists: PAGE_SIZE, playlists: PAGE_SIZE });
     setRecHasMore(false);
     pageRef.current = 1;
+    queryRef.current = debouncedQuery;
 
     const setup = async () => {
       if (!searching) {
@@ -191,6 +218,13 @@ export default function Search() {
         setAlbums(next.albums);
         setArtists(next.artists);
         setPlaylists(next.playlists);
+        setTrackSources(data.tracksBySource || null);
+        setSrcHasMore({
+          saavn: (data.tracksBySource?.saavn?.length || 0) >= PAGE_SIZE,
+          spotify: (data.tracksBySource?.spotify?.length || 0) >= PAGE_SIZE,
+          ytmusic: (data.tracksBySource?.ytmusic?.length || 0) >= PAGE_SIZE,
+          amazon: (data.tracksBySource?.amazon?.length || 0) >= PAGE_SIZE,
+        });
         setHasMore({
           tracks: next.tracks.length >= PAGE_SIZE,
           albums: next.albums.length >= PAGE_SIZE,
@@ -233,6 +267,7 @@ export default function Search() {
         albums: data.albums || [],
         artists: data.artists || [],
         playlists: mergePlaylists(data.playlists || [], community),
+        trackSources: data.tracksBySource || null,
       };
     },
     []
@@ -252,6 +287,7 @@ export default function Search() {
   const loadMoreCat = useCallback(
     async (cat) => {
       if (!searching || loading || loadingMoreCat) return;
+      const q = debouncedQuery;
       const nextPage = pageRef.current + 1;
       if (nextPage * PAGE_SIZE > MAX_RESULTS) {
         setHasMore(allFalse());
@@ -260,7 +296,10 @@ export default function Search() {
       busyRef.current = true;
       setLoadingMoreCat(cat);
       try {
-        const next = await fetchSearchPage(debouncedQuery, nextPage);
+        const next = await fetchSearchPage(q, nextPage);
+        // Query may have changed while the fetch was in flight — never append
+        // the previous query's page to the new results.
+        if (q !== queryRef.current) return;
         CATS.forEach((c) => {
           setByCat[c]((prev) => addUnique(prev, next[c], KEY_FN[c]).slice(0, MAX_RESULTS));
         });
@@ -283,9 +322,50 @@ export default function Search() {
     [searching, loading, loadingMoreCat, debouncedQuery, fetchSearchPage]
   );
 
-  // Appends the next page of recommendations when the sentinel is visible.
+  // Appends the next PAGE_SIZE batch to a single provider's track group when
+  // its "Show more" button is clicked (e.g. "Tracks · Spotify → more Spotify
+  // tracks"). Uses the same page cursor as the category sections.
+  const loadMoreSource = useCallback(
+    async (src) => {
+      if (!searching || loading || loadingMoreCat || busyRef.current) return;
+      const q = debouncedQuery;
+      const nextPage = pageRef.current + 1;
+      if (nextPage * PAGE_SIZE > MAX_RESULTS) {
+        setSrcHasMore((prev) => ({ ...prev, [src]: false }));
+        return;
+      }
+      busyRef.current = true;
+      setLoadingMoreCat(src);
+      try {
+        const next = await fetchSearchPage(q, nextPage);
+        if (q !== queryRef.current) return;
+        if (next.trackSources) {
+          setTrackSources((prev) => {
+            const cur = (prev && prev[src]) || [];
+            const more = next.trackSources[src] || [];
+            return { ...prev, [src]: addUnique(cur, more, trackKey).slice(0, MAX_RESULTS) };
+          });
+        }
+        setSrcHasMore((prev) => ({
+          ...prev,
+          [src]: (next.trackSources && next.trackSources[src] || []).length >= PAGE_SIZE,
+        }));
+        setSrcShown((prev) => ({ ...prev, [src]: Math.min(prev[src] + PAGE_SIZE, MAX_RESULTS) }));
+        pageRef.current = nextPage;
+      } catch {
+        setSrcHasMore((prev) => ({ ...prev, [src]: false }));
+      } finally {
+        busyRef.current = false;
+        setLoadingMoreCat(null);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searching, loading, loadingMoreCat, debouncedQuery, fetchSearchPage]
+  );
   const loadMoreRecommended = useCallback(async () => {
     if (searching || loading || loadingMoreCat || busyRef.current) return;
+    const q = queryRef.current; // recommended mode has no query, but the check
+    // above would have returned had a query appeared
     const nextPage = pageRef.current + 1;
     if (nextPage * PAGE_SIZE > MAX_RESULTS) {
       setRecHasMore(false);
@@ -295,6 +375,9 @@ export default function Search() {
     setLoadingMoreCat("tracks");
     try {
       const list = toList(await getPopularTracks({ limit: PAGE_SIZE, page: nextPage }));
+      // A new search may have started mid-flight — dropping stale results
+      // prevents the recommended page bleeding into the search results.
+      if (q !== queryRef.current) return;
       setTracks((prev) => addUnique(prev, list, trackKey).slice(0, MAX_RESULTS));
       setRecHasMore(list.length >= PAGE_SIZE);
       pageRef.current = nextPage;
@@ -410,16 +493,45 @@ export default function Search() {
         )
       ) : items ? (
         <>
-          {tracks.length > 0 && (
-            <Section
-              icon={TrackIcon}
-              title="Tracks"
-              count={tracks.length}
-              onMore={hasMore.tracks ? () => loadMoreCat("tracks") : null}
-              loading={loadingMoreCat === "tracks"}
-            >
-              <TrackList tracks={sliceByCat("tracks")} />
-            </Section>
+          {trackSources ? (
+            // New backend: tracks grouped by provider, one section per API.
+            SOURCES.map(({ key, label }) => {
+              const list = trackSources[key] || [];
+              if (!list.length) return null;
+              // When a provider is down the backend fills its group with Saavn
+              // rows tagged `fallbackOf`. Surface that instead of silently
+              // presenting Saavn songs as e.g. "YouTube Music".
+              const fallback = key !== "saavn" && list.some((t) => t && t.fallbackOf === key);
+              return (
+                <Section
+                  key={key}
+                  icon={TrackIcon}
+                  title={`Tracks · ${label}`}
+                  count={list.length}
+                  onMore={srcHasMore[key] ? () => loadMoreSource(key) : null}
+                  loading={loadingMoreCat === key}
+                >
+                  {fallback && (
+                    <p className="mb-3 rounded-lg border border-black/5 bg-black/[0.03] px-3 py-2 text-xs text-black/40 dark:border-white/5 dark:bg-white/[0.03] dark:text-white/40">
+                      {label} is unavailable right now — showing Saavn matches instead.
+                    </p>
+                  )}
+                  <TrackList tracks={list.slice(0, srcShown[key])} />
+                </Section>
+              );
+            })
+          ) : (
+            tracks.length > 0 && (
+              <Section
+                icon={TrackIcon}
+                title="Tracks"
+                count={tracks.length}
+                onMore={hasMore.tracks ? () => loadMoreCat("tracks") : null}
+                loading={loadingMoreCat === "tracks"}
+              >
+                <TrackList tracks={sliceByCat("tracks")} />
+              </Section>
+            )
           )}
           {albums.length > 0 && (
             <Section

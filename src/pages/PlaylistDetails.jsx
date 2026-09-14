@@ -8,7 +8,7 @@ import Loader from "../components/common/Loader.jsx";
 import Button from "../components/common/Button.jsx";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
 
-const PROVIDERS = ["spotify", "ytmusic", "amazon"];
+const PROVIDERS = ["saavn", "spotify", "ytmusic", "amazon"];
 
 export default function PlaylistDetails() {
   const { id } = useParams();
@@ -29,7 +29,9 @@ export default function PlaylistDetails() {
       try {
         if (isCatalog) {
           const res = await getCatalogPlaylist(source, id);
-          let data = res.data;
+          // Saavn's detail endpoint wraps a single playlist in a results
+          // array; normalize so the songs check below sees one object.
+          let data = Array.isArray(res.data) ? res.data[0] || {} : res.data;
           if (!data.songs?.length) {
             const tracksRes = await getCatalogPlaylistTracks(source, id);
             data = { ...data, songs: tracksRes.data || [] };
@@ -86,7 +88,7 @@ export default function PlaylistDetails() {
           />
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
-              {isCatalog ? { spotify: "Spotify", ytmusic: "YouTube Music", amazon: "Amazon Music" }[source] : "Playlist"}
+              {isCatalog ? { saavn: "JioSaavn", spotify: "Spotify", ytmusic: "YouTube Music", amazon: "Amazon Music" }[source] : "Playlist"}
             </p>
             <h1 className="font-display mt-1 break-words text-3xl font-semibold tracking-tight sm:text-4xl">
               {playlist.name}

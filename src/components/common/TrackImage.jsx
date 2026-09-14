@@ -47,7 +47,7 @@ export default function TrackImage({ track, alt = "", className, index }) {
     hydratedRef.current = false;
 
     const needsHydration =
-      base === DEFAULT_ARTWORK || !String(track?.image || "").trim();
+      (base === DEFAULT_ARTWORK || !String(track?.image || "").trim());
     if (needsHydration && (track?.name || track?.artist_name)) {
       hydrate(track).then((img) => {
         if (aliveRef.current && img) {

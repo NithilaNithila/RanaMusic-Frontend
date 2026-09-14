@@ -4,10 +4,14 @@ import { Link } from "react-router-dom";
 import { imageSrc, handleImageError } from "../../utils/imageFallback";
 
 function AlbumCard({ album, index = 0 }) {
+  // Search rows carry a provider tag; popular/language lists are Saavn-only.
+  // Route Amazon/Spotify/YouTube Music albums to their own detail endpoint
+  // via ?source=.
+  const source = album?.source && ["spotify", "amazon", "ytmusic"].includes(album.source) ? album.source : null;
   return (
     <motion.div whileTap={{ scale: 0.97 }} className="h-full">
       <Link
-        to={`/albums/${album.id}`}
+        to={source ? `/albums/${album.id}?source=${source}` : `/albums/${album.id}`}
         className="group relative block h-full overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-2.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/[0.12] dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-brand/30 dark:hover:bg-white/[0.09] dark:hover:shadow-black/40"
       >
         {/* Soft brand glow behind artwork on hover */}

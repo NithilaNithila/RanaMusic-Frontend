@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import Input from "../components/common/Input.jsx";
@@ -39,6 +39,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const errorId = useId();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -72,7 +73,7 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input type="email" name="email" placeholder="Email" icon={MailIcon} value={form.email} onChange={handleChange} required />
+          <Input type="email" name="email" placeholder="Email" icon={MailIcon} value={form.email} onChange={handleChange} required aria-describedby={errorId} />
           <Input
             type={showPassword ? "text" : "password"}
             name="password"
@@ -81,6 +82,7 @@ export default function Login() {
             value={form.password}
             onChange={handleChange}
             required
+            aria-describedby={errorId}
             rightSlot={
               <button
                 type="button"
@@ -94,7 +96,7 @@ export default function Login() {
             }
           />
           {error && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
+            <p id={errorId} className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
           )}
           <Button type="submit" disabled={loading} className="mt-1 w-full">
             {loading ? "Logging in..." : "Log in"}
