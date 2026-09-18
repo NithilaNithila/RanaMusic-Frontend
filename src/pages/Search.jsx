@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getPopularTracks } from "../api/trackApi";
 import { globalSearch } from "../api/searchApi";
@@ -12,6 +12,29 @@ import PlaylistCard from "../components/playlist/PlaylistCard.jsx";
 import ShowMoreButton from "../components/common/ShowMoreButton.jsx";
 import Input from "../components/common/Input.jsx";
 import SkeletonRows from "../components/common/SkeletonRows.jsx";
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function cacheKey(query, params) {
+  return `search:${query}:${JSON.stringify(params || {})}`;
+}
+
+function readSearchCache(query, params = {}) {
+  try {
+    const key = cacheKey(query, params);
+    const raw = sessionStorage.getItem(key);
+    if (raw) {
+      const { ts, data } = JSON.parse(raw);
+      if (Date.now() - ts < CACHE_TTL_MS) {
+        return data;
+      }
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore corrupt cache */
+  }
+  return null;
+}
 
 const PAGE_SIZE = 12; // Items loaded first (+ per "Show more" click)
 const MAX_RESULTS = 500; // Hard ceiling per category
@@ -143,6 +166,40 @@ export default function Search() {
   const debouncedQuery = useDebounce(query, 400);
   const searching = Boolean(debouncedQuery.trim());
 
+  // Synchronous cache check for the current debounced query — avoids the
+  // skeleton flash when navigating back from NowPlaying.
+  const cachedSearchData = useMemo(() => {
+    if (!searching) return null;
+    const params = { limit: PAGE_SIZE, offset: 0 };
+    return readSearchCache(debouncedQuery, params);
+  }, [debouncedQuery, searching]);
+
+  // Hydrate state from cache on first render (before the async effect runs).
+  useEffect(() => {
+    if (cachedSearchData && searching) {
+      const data = cachedSearchData.results || cachedSearchData;
+      const community = []; // community playlists not cached separately
+      setTracks(data.tracks || []);
+      setAlbums(data.albums || []);
+      setArtists(data.artists || []);
+      setPlaylists(data.playlists || []);
+      setTrackSources(data.tracksBySource || null);
+      setSrcHasMore({
+        saavn: (data.tracksBySource?.saavn?.length || 0) >= PAGE_SIZE,
+        spotify: (data.tracksBySource?.spotify?.length || 0) >= PAGE_SIZE,
+        ytmusic: (data.tracksBySource?.ytmusic?.length || 0) >= PAGE_SIZE,
+        amazon: (data.tracksBySource?.amazon?.length || 0) >= PAGE_SIZE,
+      });
+      setHasMore({
+        tracks: (data.tracks || []).length >= PAGE_SIZE,
+        albums: (data.albums || []).length >= PAGE_SIZE,
+        artists: (data.artists || []).length >= PAGE_SIZE,
+        playlists: (data.playlists || []).length >= PAGE_SIZE,
+      });
+      setLoading(false);
+    }
+  }, [cachedSearchData, searching]);
+
   // Keep the input in sync with the ?q= URL param (deep links / in-app
   // navigation while the page is already mounted).
   useEffect(() => {
@@ -167,17 +224,20 @@ export default function Search() {
   // First page whenever the query changes (covers both modes)
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setTracks([]);
-    setAlbums([]);
-    setArtists([]);
-    setPlaylists([]);
-    setTrackSources(null);
-    setSrcShown({ saavn: PAGE_SIZE, spotify: PAGE_SIZE, ytmusic: PAGE_SIZE, amazon: PAGE_SIZE });
-    setSrcHasMore(allFalse());
-    setHasMore(allFalse());
-    setShown({ tracks: PAGE_SIZE, albums: PAGE_SIZE, artists: PAGE_SIZE, playlists: PAGE_SIZE });
-    setRecHasMore(false);
+    // If we already hydrated from cache, don't reset state or show skeleton
+    if (!cachedSearchData) {
+      setLoading(true);
+      setTracks([]);
+      setAlbums([]);
+      setArtists([]);
+      setPlaylists([]);
+      setTrackSources(null);
+      setSrcShown({ saavn: PAGE_SIZE, spotify: PAGE_SIZE, ytmusic: PAGE_SIZE, amazon: PAGE_SIZE });
+      setSrcHasMore(allFalse());
+      setHasMore(allFalse());
+      setShown({ tracks: PAGE_SIZE, albums: PAGE_SIZE, artists: PAGE_SIZE, playlists: PAGE_SIZE });
+      setRecHasMore(false);
+    }
     pageRef.current = 1;
     queryRef.current = debouncedQuery;
 
@@ -214,10 +274,18 @@ export default function Search() {
           artists: data.artists || [],
           playlists: mergePlaylists(data.playlists || [], community),
         };
-        setTracks(next.tracks);
-        setAlbums(next.albums);
-        setArtists(next.artists);
-        setPlaylists(next.playlists);
+        // If we already hydrated from cache, merge new data without flicker
+        if (cachedSearchData) {
+          setTracks((prev) => addUnique(prev, next.tracks, trackKey).slice(0, MAX_RESULTS));
+          setAlbums((prev) => addUnique(prev, next.albums, idKey).slice(0, MAX_RESULTS));
+          setArtists((prev) => addUnique(prev, next.artists, idKey).slice(0, MAX_RESULTS));
+          setPlaylists((prev) => mergePlaylists(prev, next.playlists).slice(0, MAX_RESULTS));
+        } else {
+          setTracks(next.tracks);
+          setAlbums(next.albums);
+          setArtists(next.artists);
+          setPlaylists(next.playlists);
+        }
         setTrackSources(data.tracksBySource || null);
         setSrcHasMore({
           saavn: (data.tracksBySource?.saavn?.length || 0) >= PAGE_SIZE,
@@ -234,7 +302,7 @@ export default function Search() {
       } catch {
         // Failed search request: leave the four categories empty so the page
         // renders the "Nothing found" state instead of hanging on the skeleton.
-        if (active) {
+        if (active && !cachedSearchData) {
           setTracks([]);
           setAlbums([]);
           setArtists([]);
@@ -250,7 +318,7 @@ export default function Search() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery]);
+  }, [debouncedQuery, cachedSearchData]);
 
   // Fetches one more PAGE_SIZE batch per category for a search query.
   const fetchSearchPage = useCallback(

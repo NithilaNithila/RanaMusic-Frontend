@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getPopularTracks } from "../api/trackApi";
@@ -19,6 +19,26 @@ import PlaylistCard from "../components/playlist/PlaylistCard.jsx";
 import ShowMoreButton from "../components/common/ShowMoreButton.jsx";
 
 const PAGE_SIZE = 12;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function cacheKey(query, params) {
+  return `search:${query}:${JSON.stringify(params || {})}`;
+}
+
+function readSearchCache(query, params = {}) {
+  try {
+    const key = cacheKey(query, params);
+    const raw = sessionStorage.getItem(key);
+    if (raw) {
+      const { ts, data } = JSON.parse(raw);
+      if (Date.now() - ts < CACHE_TTL_MS) return data;
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore corrupt cache */
+  }
+  return null;
+}
 
 // Loads public playlists created by any user, or [] on failure.
 const loadCommunityPlaylists = async (query = "", params = {}) => {
@@ -164,7 +184,7 @@ function LoadError({ onRetry }) {
   );
 }
 
-function useBrowseList({ query, language, fetchPage }) {
+function useBrowseList({ query, language, fetchPage, cacheKey }) {
   const [items, setItems] = useState([]);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
@@ -174,12 +194,31 @@ function useBrowseList({ query, language, fetchPage }) {
   const requestId = useRef(0);
   const moreBusy = useRef(false);
 
+  // Synchronous cache read for the current query + cacheKey
+  const cachedData = useMemo(() => {
+    if (!query || !cacheKey) return null;
+    try {
+      const key = `search:${query}:${JSON.stringify({ ...{ limit: PAGE_SIZE, offset: 0, type: cacheKey } })}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts < CACHE_TTL_MS) return data;
+        sessionStorage.removeItem(key);
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+    return null;
+  }, [query, cacheKey]);
+
   const load = useCallback(
     async ({ reset = true, page = 1, active }) => {
       const id = ++requestId.current;
       if (reset) {
-        setLoading(true);
-        setError(false);
+        if (!cachedData) {
+          setLoading(true);
+          setError(false);
+        }
       } else {
         setLoadingMore(true);
       }
@@ -188,9 +227,18 @@ function useBrowseList({ query, language, fetchPage }) {
         if (id !== requestId.current || (active && !active())) return false;
         const next = res.data?.results || res.data || [];
         if (reset) {
-          setItems(next);
-          setVisible(PAGE_SIZE);
-          setHasMore(next.length >= PAGE_SIZE);
+          if (cachedData) {
+            // Merge fresh data with cached (deduplicate)
+            const seen = new Set(cachedData.map((it) => it.id));
+            const merged = [...cachedData, ...next.filter((it) => it.id && !seen.has(it.id))];
+            setItems(merged.slice(0, PAGE_SIZE * 10)); // allow growth
+            setVisible(PAGE_SIZE);
+            setHasMore(merged.length >= PAGE_SIZE);
+          } else {
+            setItems(next);
+            setVisible(PAGE_SIZE);
+            setHasMore(next.length >= PAGE_SIZE);
+          }
         } else {
           setItems((prev) => {
             const seen = new Set(prev.map((it) => it.id));
@@ -201,7 +249,7 @@ function useBrowseList({ query, language, fetchPage }) {
         return true;
       } catch {
         if (id !== requestId.current || (active && !active())) return false;
-        if (reset) setError(true);
+        if (reset && !cachedData) setError(true);
         else setHasMore(false);
         return true;
       } finally {
@@ -212,16 +260,29 @@ function useBrowseList({ query, language, fetchPage }) {
         if (!reset) moreBusy.current = false;
       }
     },
-    [fetchPage, language]
+    [fetchPage, language, cachedData]
   );
+
+  // Hydrate from cache on mount
+  useEffect(() => {
+    if (cachedData) {
+      setItems(cachedData.slice(0, PAGE_SIZE * 10));
+      setVisible(PAGE_SIZE);
+      setHasMore(cachedData.length >= PAGE_SIZE);
+      setLoading(false);
+    }
+  }, [cachedData]);
 
   useEffect(() => {
     let active = true;
-    load({ reset: true, active: () => active });
+    // If we already have cached data, don't show skeleton
+    if (!cachedData) {
+      load({ reset: true, active: () => active });
+    }
     return () => {
       active = false;
     };
-  }, [load]);
+  }, [load, cachedData]);
 
   const retry = useCallback(() => load({ reset: true }), [load]);
 
@@ -261,7 +322,7 @@ function TracksTab({ query }) {
     [query, language]
   );
   const { items, loading, error, visible, hasMore, loadingMore, retry, loadMore } =
-    useBrowseList({ query, language, fetchPage });
+    useBrowseList({ query, language, fetchPage, cacheKey: "track" });
 
   if (loading) return <BrowseSkeleton />;
   if (error) return <LoadError onRetry={retry} />;
@@ -304,7 +365,7 @@ function AlbumsTab({ query }) {
     [query, language]
   );
   const { items, loading, error, visible, hasMore, loadingMore, retry, loadMore } =
-    useBrowseList({ query, language, fetchPage });
+    useBrowseList({ query, language, fetchPage, cacheKey: "album" });
 
   if (loading) return <BrowseSkeleton />;
   if (error) return <LoadError onRetry={retry} />;
@@ -341,7 +402,7 @@ function ArtistsTab({ query }) {
     [query, language]
   );
   const { items, loading, error, visible, hasMore, loadingMore, retry, loadMore } =
-    useBrowseList({ query, language, fetchPage });
+    useBrowseList({ query, language, fetchPage, cacheKey: "artist" });
 
   if (loading) return <BrowseSkeleton />;
   if (error) return <LoadError onRetry={retry} />;
@@ -571,9 +632,32 @@ function PlaylistsTab({ query }) {
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Synchronous cache read for playlists
+  const cachedPlaylists = useMemo(() => {
+    if (!query) return null;
+    try {
+      const key = `search:${query}:${JSON.stringify({ limit: 60, offset: 0, type: "playlist" })}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts < CACHE_TTL_MS) return data;
+        sessionStorage.removeItem(key);
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+    return null;
+  }, [query]);
+
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    // Hydrate from cache instantly
+    if (cachedPlaylists) {
+      setPlaylists(cachedPlaylists);
+      setVisible(PAGE_SIZE);
+      setLoading(false);
+    }
+    setLoading(!cachedPlaylists);
     setError(false);
     const request = query
       ? // Unified search returns provider playlists; public playlists created
@@ -591,7 +675,13 @@ function PlaylistsTab({ query }) {
     request
       .then((list) => {
         if (active) {
-          setPlaylists(list);
+          if (cachedPlaylists) {
+            const seen = new Set(cachedPlaylists.map((p) => p.id));
+            const merged = [...cachedPlaylists, ...list.filter((p) => p.id && !seen.has(p.id))];
+            setPlaylists(merged);
+          } else {
+            setPlaylists(list);
+          }
           setVisible(PAGE_SIZE);
         }
       })
@@ -604,7 +694,7 @@ function PlaylistsTab({ query }) {
     return () => {
       active = false;
     };
-  }, [query, reloadKey]);
+  }, [query, reloadKey, cachedPlaylists]);
 
   const filtered = query
     ? playlists.filter((p) =>
