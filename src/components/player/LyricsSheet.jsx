@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import { getLyrics, getLyricsByTitle } from "../../api/lyricsApi";
 
 const SOURCE_LABEL = { saavn: "JioSaavn", lrclib: "LRCLIB", lyricsovh: "Lyrics.ovh", ytmusic: "YouTube Music" };
@@ -61,7 +60,7 @@ const attempts = [
 function ShimmerLine({ i, active }) {
   const widths = [92, 100, 88, 96, 90, 84, 98, 72, 100];
   return (
-    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${active ? "bg-white/10" : ""}`}>
+    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 shimmer-line ${active ? "bg-white/10" : ""}`}>
       <span
         className={`h-[10px] rounded-full ${
           active ? "bg-gradient-to-r from-premium-primary to-brand shadow-[0_0_12px_rgba(79,156,249,0.6)]" : "bg-white/25"
@@ -155,19 +154,9 @@ export default function LyricsSheet({ open, onClose, track, progress, duration }
 
   return (
     <>
-      <motion.div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-[32px] border-t border-white/10 bg-ink-900/92 px-6 pb-8 pt-4 backdrop-blur-2xl"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 300, damping: 34 }}
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm backdrop-enter" onClick={onClose} />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-[32px] border-t border-white/10 bg-ink-900/92 px-6 pb-8 pt-4 backdrop-blur-2xl sheet-enter"
         role="dialog"
         aria-modal="true"
         aria-label="Lyrics"
@@ -192,17 +181,16 @@ export default function LyricsSheet({ open, onClose, track, progress, duration }
                 load(s).catch(() => {});
               }}
             />
-            <motion.button
+            <button
               onClick={onClose}
-              whileTap={{ scale: 0.88 }}
+              className="glass-chip grid h-10 w-10 place-items-center rounded-full text-white/70 hover:text-white tap-scale"
               aria-label="Close lyrics"
-              className="glass-chip grid h-10 w-10 place-items-center rounded-full text-white/70 hover:text-white"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </motion.button>
+            </button>
           </div>
         </div>
 
@@ -220,16 +208,12 @@ export default function LyricsSheet({ open, onClose, track, progress, duration }
             </>
           ) : error ? (
             <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-4 text-center">
-              <motion.div
-                className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.06] text-white/40"
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity }}
-              >
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-white/[0.06] text-white/40 pulse-ring">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 3c-4.5 0-8 2.8-8 6.3 0 1.9 1 3.6 2.7 4.7-.2 1.5-1 2.9-2.2 4 0 0 2.9-.2 4.6-1.6 1 .3 2 .4 3 .4 4.5 0 8-2.8 8-6.3S16.5 3 12 3z" />
                   <path d="M9 13c1 1 1 1 1.5 1h3M9 17h6" />
                 </svg>
-              </motion.div>
+              </div>
               <div>
                 <p className="text-sm font-semibold text-white/80">No lyrics found for this track</p>
                 <p className="mt-1 text-xs text-white/40">Try the other source, or check back later.</p>
@@ -253,15 +237,9 @@ export default function LyricsSheet({ open, onClose, track, progress, duration }
                   line.trim() === "" ? (
                     <p key={i} className="h-4" aria-hidden="true" />
                   ) : (
-                    <motion.p
-                      key={i}
-                      className="py-1"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: Math.min(i * 0.01, 0.4) }}
-                    >
+                    <p key={i} className="py-1 lyric-line-enter" style={{ animationDelay: `${Math.min(i * 10, 400)}ms` }}>
                       {line}
-                    </motion.p>
+                    </p>
                   )
                 )}
               </div>
@@ -273,7 +251,7 @@ export default function LyricsSheet({ open, onClose, track, progress, duration }
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

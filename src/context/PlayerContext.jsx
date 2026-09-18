@@ -85,7 +85,7 @@ const trackFromFav = (f) => ({
   artist_name: f.meta?.artistName || "",
   album_name: f.meta?.albumName || "",
   audio: f.meta?.audio || "",
-  videoId: f.meta?.videoId || (f.meta?.source === "ytmusic" ? String(f.jamendoId) : ""),
+  videoId: f.meta?.videoId || "",
   duration: f.meta?.duration || 0,
 });
 
@@ -100,12 +100,19 @@ const favFromTrack = (t) => ({
     artistName: t.artist_name || "",
     albumName: t.album_name || "",
     audio: t.audio || "",
-    videoId: t.videoId || (t.source === "ytmusic" ? String(t.id) : ""),
+    videoId: t.videoId || "",
     duration: Number(t.duration) || 0,
   },
 });
 
 export const PlayerContext = createContext(null);
+
+// High-frequency playback position lives in its OWN context so consumers that
+// only read the player (queue, controls, current track, likes...) don't
+// re-render ~4x/sec while audio plays. Without the split, every `timeupdate`
+// (or the 500ms YT poll) changed the shared context value and re-rendered the
+// whole app from Home down to each TrackCard.
+export const PlaybackProgressContext = createContext(null);
 
 export function PlayerProvider({ children }) {
   const audioRef = useRef(new Audio());
@@ -129,6 +136,12 @@ export function PlayerProvider({ children }) {
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+  // Mirror of the current track for event handlers (audio error etc.) that
+  // are registered once and therefore can't close over render-time state.
+  const currentTrackRef = useRef(currentTrack);
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
   const [likedTracks, setLikedTracks] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("likedTracks")) || {};
@@ -300,7 +313,11 @@ export function PlayerProvider({ children }) {
       // No playable copy anywhere (full resolve + Saavn/YT fallbacks failed).
       // Surface the failure and auto-skip to the next track instead of
       // stranding the player on a dead track with no sound and no way out.
+      // When there is nothing to skip to, KEEP the current track selected so
+      // the error stays visible in the player bar (unmounting it would hide
+      // the "unavailable" notice entirely).
       setYoutubeVideoId(null);
+      setIsPlaying(false);
       setPlaybackError(`${track.name || "This track"} is unavailable in any source`);
       const idx = trackQueue.findIndex((t) => sameTrack(t, track));
       const next = trackQueue[idx + 1];
@@ -308,8 +325,6 @@ export function PlayerProvider({ children }) {
         playTrack(next, trackQueue);
         return;
       }
-      setCurrentTrack(null);
-      setIsPlaying(false);
     });
   }, []);
 
@@ -470,7 +485,17 @@ export function PlayerProvider({ children }) {
     const onPause = () => setIsPlaying(false);
     const onTimeUpdate = () => setProgress(audio.currentTime);
     const onLoadedMeta = () => setDuration(audio.duration);
-    const onError = () => setIsPlaying(false);
+    const onError = () => {
+      setIsPlaying(false);
+      // The src failed to load/decode (expired CDN link, dead stream, blocked
+      // host). Surface it and auto-skip so the queue keeps moving instead of
+      // hanging on a silent track. The dead-end next-branch in playTrack
+      // already handles "no next" — here we just advance.
+      setPlaybackError(
+        `${currentTrackRef.current?.name || "This track"} failed to load audio`
+      );
+      playNextRef.current();
+    };
 
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
@@ -485,6 +510,7 @@ export function PlayerProvider({ children }) {
       audio.removeEventListener("loadedmetadata", onLoadedMeta);
       audio.removeEventListener("error", onError);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const playNextRef = useRef(playNext);
@@ -505,8 +531,6 @@ export function PlayerProvider({ children }) {
     history,
     isPlaying,
     playbackError,
-    progress,
-    duration,
     volume,
     isShuffled,
     repeatMode,
@@ -528,16 +552,22 @@ export function PlayerProvider({ children }) {
     cycleRepeat,
     toggleLike,
   }), [
-    currentTrack, queue, history, isPlaying, playbackError, progress, duration,
+    currentTrack, queue, history, isPlaying, playbackError,
     volume, isShuffled, repeatMode, isLiked, likedList, youtubeVideoId,
     registerYoutube, unregisterYoutube, reportYoutube, playTrack, togglePlay,
     pause, playNext, playPrev, addToQueueNext, seek, changeVolume,
     toggleShuffle, cycleRepeat, toggleLike,
   ]);
 
+  // Progress/duration change constantly while playing; keep that surface
+  // isolated so only true progress consumers (PlayerBar, NowPlaying) update.
+  const progressValue = useMemo(() => ({ progress, duration }), [progress, duration]);
+
   return (
     <PlayerContext.Provider value={value}>
-      {children}
+      <PlaybackProgressContext.Provider value={progressValue}>
+        {children}
+      </PlaybackProgressContext.Provider>
     </PlayerContext.Provider>
   );
 }

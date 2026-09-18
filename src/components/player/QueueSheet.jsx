@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import TrackImage from "../common/TrackImage.jsx";
 import { sameTrack } from "../../utils/helpers";
 
@@ -24,19 +23,9 @@ export default function QueueSheet({ open, onClose, queue, currentTrack, onPlay 
 
   return (
     <>
-      <motion.div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-[32px] border-t border-white/10 bg-ink-900/92 px-6 pb-8 pt-4 backdrop-blur-2xl"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 300, damping: 34 }}
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm backdrop-enter" onClick={onClose} />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col rounded-t-[32px] border-t border-white/10 bg-ink-900/92 px-6 pb-8 pt-4 backdrop-blur-2xl sheet-enter"
         role="dialog"
         aria-modal="true"
         aria-label="Queue"
@@ -107,7 +96,7 @@ export default function QueueSheet({ open, onClose, queue, currentTrack, onPlay 
             </p>
           )}
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

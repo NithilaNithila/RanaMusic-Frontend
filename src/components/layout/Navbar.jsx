@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../context/ThemeContext";
-import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { usePlayer } from "../../hooks/useAudioPlayer";
 import Equalizer from "../common/Equalizer.jsx";
 import { APP_DOWNLOAD_URL } from "../../utils/constants";
 
@@ -54,7 +54,7 @@ const LogoutIcon = (
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { isPlaying } = useAudioPlayer();
+  const { isPlaying } = usePlayer();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -133,9 +133,6 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" onClick={closeAll} className="group flex shrink-0 items-center gap-2.5">
           <motion.span
-            initial={{ scale: 0, rotate: -30 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 320, damping: 17 }}
             whileHover={{ rotate: -10, scale: 1.12 }}
             whileTap={{ scale: 0.9 }}
             className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-brand-300 text-black shadow-lg shadow-brand/30 transition-shadow duration-300 group-hover:shadow-brand/50"
@@ -147,9 +144,6 @@ export default function Navbar() {
             </svg>
           </motion.span>
           <motion.span
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15, duration: 0.4, ease: "easeOut" }}
             className="flex items-center gap-2 text-lg font-bold sm:text-xl"
           >
             <span className="font-display animate-gradientShift bg-300% bg-gradient-to-r from-brand via-brand-600 to-brand bg-clip-text text-transparent dark:via-white">

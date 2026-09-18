@@ -1,7 +1,6 @@
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { usePlayer } from "../../hooks/useAudioPlayer";
 import { formatDuration } from "../../utils/formatDuration";
 import { sameTrack } from "../../utils/helpers";
 import TrackImage from "../common/TrackImage.jsx";
@@ -9,7 +8,7 @@ import Equalizer from "../common/Equalizer.jsx";
 
 export default memo(function TrackCard({ track, queue = [], index = 0 }) {
   const navigate = useNavigate();
-  const { playTrack, currentTrack, isPlaying, togglePlay } = useAudioPlayer();
+  const { playTrack, currentTrack, isPlaying, togglePlay } = usePlayer();
   const isCurrent = sameTrack(currentTrack, track);
   const isPlayingHere = isCurrent && isPlaying;
 
@@ -20,13 +19,12 @@ export default memo(function TrackCard({ track, queue = [], index = 0 }) {
   };
 
   return (
-    <motion.div
+    <div
       onClick={handleClick}
-      whileTap={{ scale: 0.97 }}
-      className={`group relative h-full cursor-pointer overflow-hidden rounded-3xl border p-2.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl transition-all duration-300 ${
+      className={`group relative h-full cursor-pointer overflow-hidden rounded-3xl border p-2.5 shadow-lg shadow-[rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 tap-scale ${
         isCurrent
-          ? "border-brand/50 bg-gradient-to-b from-brand/[0.12] to-white/60 shadow-lg shadow-brand/15 ring-1 ring-brand/30 dark:border-brand/35 dark:from-brand/[0.15] dark:to-white/[0.06] dark:ring-brand/25 dark:shadow-brand/[0.07]"
-          : "border-white/40 bg-white/60 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/[0.12] dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-brand/30 dark:hover:bg-white/[0.09] dark:hover:shadow-black/40"
+          ? "border-brand/50 bg-gradient-to-b from-brand/10 to-white/60 shadow-lg shadow-brand/15 ring-1 ring-brand/30 dark:border-brand/35 dark:from-brand/10 dark:to-white/5 dark:ring-brand/25 dark:shadow-brand/5"
+          : "border-white/40 bg-white/60 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/10 dark:border-white/10 dark:bg-white/5 dark:hover:border-brand/30 dark:hover:bg-white/10 dark:hover:shadow-black/40"
       }`}
     >
       {/* Soft brand glow behind artwork on hover */}
@@ -104,6 +102,6 @@ export default memo(function TrackCard({ track, queue = [], index = 0 }) {
           {track.artist_name}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 })

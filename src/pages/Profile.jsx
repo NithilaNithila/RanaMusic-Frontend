@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
-import { useAudioPlayer } from "../hooks/useAudioPlayer";
+import { usePlayer } from "../hooks/useAudioPlayer";
 import { getMyPlaylists, deletePlaylist } from "../api/playlistApi";
 import { sameTrack } from "../utils/helpers";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
@@ -32,7 +32,7 @@ const itemVariants = {
 
 export default function Profile() {
   const { user, logout, deleteAccount } = useAuth();
-  const { likedList, playTrack, currentTrack, isPlaying } = useAudioPlayer();
+  const { likedList, playTrack, currentTrack, isPlaying } = usePlayer();
   const [playlists, setPlaylists] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -276,6 +276,7 @@ export default function Profile() {
                     src={imageSrc(p.coverImage || p.tracks?.[0]?.albumImage || p.tracks?.[0]?.image)}
                     onError={handleImageError}
                     alt={p.name}
+                    decoding="async"
                     className="h-11 w-11 shrink-0 rounded-lg object-cover transition-transform duration-300 group-hover:scale-[1.07]"
                   />
                   <span className="min-w-0 flex-1">

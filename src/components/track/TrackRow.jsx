@@ -1,7 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { usePlayer } from "../../hooks/useAudioPlayer";
 import { formatDuration } from "../../utils/formatDuration";
 import { sameTrack } from "../../utils/helpers";
 import TrackImage from "../common/TrackImage.jsx";
@@ -11,7 +10,7 @@ const EMPTY_QUEUE = [];
 
 export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
   const navigate = useNavigate();
-  const { playTrack, currentTrack, isPlaying, togglePlay, addToQueueNext } = useAudioPlayer();
+  const { playTrack, currentTrack, isPlaying, togglePlay, addToQueueNext } = usePlayer();
   const [queued, setQueued] = useState(false);
   const queuedTimerRef = useRef(null);
   const isCurrent = sameTrack(currentTrack, track);
@@ -36,25 +35,22 @@ export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
     queuedTimerRef.current = setTimeout(() => setQueued(false), 1400);
   };
 
+  // Stagger delay for initial animation
+  const staggerDelay = Math.min((index % 20) * 0.025, 0.4);
+  const staggerClass = `track-row-enter track-row-enter-delay-${Math.round(staggerDelay * 1000)}`;
+
   return (
-    <motion.div
+    <div
       onClick={handleClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter") handleClick();
       }}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.3,
-        ease: "easeOut",
-        delay: Math.min((index % 20) * 0.025, 0.4),
-      }}
-      className={`group grid cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-xl px-2 py-2 transition-all duration-200 ${
+      className={`${staggerClass} group grid cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-xl px-2 py-2 transition-all duration-200 ${
         isCurrent
-          ? "bg-brand/10 ring-1 ring-brand/30 shadow-sm shadow-brand/10 dark:bg-brand/[0.09] dark:ring-brand/25"
-          : "hover:bg-black/5 dark:hover:bg-white/[0.06]"
+          ? "bg-brand/10 ring-1 ring-brand/30 shadow-sm shadow-brand/10 dark:bg-brand/10 dark:ring-brand/25"
+          : "hover:bg-black/5 dark:hover:bg-white/5"
       }`}
     >
       <span className="grid place-items-center text-sm tabular-nums">
@@ -104,7 +100,7 @@ export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
           }`}
         >
           {queued ? (
-            <motion.svg
+            <svg
               width="13"
               height="13"
               viewBox="0 0 24 24"
@@ -113,12 +109,10 @@ export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
-              initial={{ scale: 0.4, rotate: -30 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 20 }}
+              className="checkmark-pop"
             >
               <polyline points="20 6 9 17 4 12" />
-            </motion.svg>
+            </svg>
           ) : (
             /* list-plus: add to queue */
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -134,6 +128,6 @@ export default memo(function TrackRow({ track, index, queue = EMPTY_QUEUE }) {
           {formatDuration(track.duration)}
         </span>
       </div>
-    </motion.div>
+    </div>
   );
 })

@@ -20,8 +20,6 @@ body,
   height: 100%;
 }
 
-/* Root must match the active theme, otherwise overscroll / rubber-band
-   scrolling flashes white (default canvas) even in dark mode. */
 html {
   background-color: #f4f7fb;
   overscroll-behavior-y: none;
@@ -36,7 +34,6 @@ body {
   box-sizing: border-box;
 }
 
-/* Theme-aware design tokens (light default; overridden when <html class="dark">) */
 :root {
   --scrollbar-thumb: #c9d2d8;
   --scrollbar-thumb-hover: #87ceeb;
@@ -50,7 +47,6 @@ body {
   --range-thumb: #ffffff;
 }
 
-/* Briefly applied by ThemeContext on toggle so colors cross-fade smoothly */
 html.theme-anim,
 html.theme-anim *,
 html.theme-anim *::before,
@@ -71,13 +67,11 @@ html.theme-anim *::after {
   color: #fff;
 }
 
-/* Accessible focus ring everywhere */
 :focus-visible {
   outline: 2px solid rgba(135, 206, 235, 0.7);
   outline-offset: 2px;
 }
 
-/* Scroll-reveal: elements start hidden, animate in when the .in-view class is added by IntersectionObserver */
 .reveal {
   opacity: 0;
   transform: translateY(24px);
@@ -88,10 +82,6 @@ html.theme-anim *::after {
   transform: translateY(0);
 }
 
-/* Responsive card grid. Uses CSS Grid with auto-fill + a minimum card width
-   so columns are derived from the available width — this keeps every card at
-   a constant size and simply lays out however many items the backend returns,
-   adding columns when there's more room (mobile -> tablet -> laptop -> TV). */
 .card-grid {
   display: grid;
   gap: 0.75rem;
@@ -147,7 +137,6 @@ html.theme-anim *::after {
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-/* Custom range slider (volume) */
 input[type="range"].range-brand {
   -webkit-appearance: none;
   appearance: none;
@@ -183,7 +172,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* NowPlaying: slow album art rotation, only while playing (transform-only for 60fps) */
 @keyframes album-spin {
   to { transform: rotate(360deg); }
 }
@@ -192,7 +180,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   will-change: transform;
 }
 
-/* NowPlaying: equalizer bars */
 @keyframes eq-bounce {
   0%, 100% { transform: scaleY(0.25); }
   50% { transform: scaleY(1); }
@@ -202,7 +189,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   animation: eq-bounce 0.9s ease-in-out infinite;
 }
 
-/* NowPlaying: gentle marquee drift for long titles */
 @keyframes marquee-scroll {
   from { transform: translateX(8%); }
   to { transform: translateX(-8%); }
@@ -215,29 +201,21 @@ input[type="range"].range-brand::-moz-range-thumb {
   animation: marquee-scroll 8s ease-in-out infinite alternate;
 }
 
-/* ------------------------------------------------------------------ */
-/* Premium Now Playing — cinematic / glassmorphism enhancements        */
-/* ------------------------------------------------------------------ */
-
-/* Soft float used for the album artwork */
 @keyframes premium-float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-14px); }
 }
 
-/* Pulsing halo around the artwork matching its accent color */
 @keyframes premium-halo {
   0%, 100% { opacity: 0.45; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(1.06); }
 }
 
-/* Slow ambient rotation of the glowing conic light behind the art */
 @keyframes premium-orbit {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* Waves for the premium waveform (each bar) */
 @keyframes premium-wave {
   0%, 100% { transform: scaleY(0.25); }
   50% { transform: scaleY(1); }
@@ -247,7 +225,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   animation: premium-wave 1s ease-in-out infinite;
 }
 
-/* Drifting particles that rise up the screen */
 @keyframes premium-rise {
   0% { transform: translateY(30vh) translateX(0) scale(1); opacity: 0; }
   15% { opacity: 0.8; }
@@ -255,26 +232,22 @@ input[type="range"].range-brand::-moz-range-thumb {
   100% { transform: translateY(-40vh) translateX(24px) scale(0.4); opacity: 0; }
 }
 
-/* Pulsing ripple ring sent from the play button */
 @keyframes premium-pulse-ring {
   0% { transform: scale(1); opacity: 0.5; }
   100% { transform: scale(1.75); opacity: 0; }
 }
 
-/* Shimmer sweep used on glass cards */
 @keyframes premium-shimmer {
   0% { transform: translateX(-120%) skewX(-12deg); }
   100% { transform: translateX(220%) skewX(-12deg); }
 }
 
-/* Faint rotating conic light cast on the backdrop */
 @keyframes premium-conic {
   0% { transform: rotate(0deg) scale(1); }
   50% { transform: rotate(180deg) scale(1.08); }
   100% { transform: rotate(360deg) scale(1); }
 }
 
-/* Glass panel (frosted) used across the premium now-playing UI */
 .glass-panel {
   background: linear-gradient(150deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
   backdrop-filter: blur(22px) saturate(160%);
@@ -292,12 +265,10 @@ input[type="range"].range-brand::-moz-range-thumb {
   border: 1px solid rgba(255,255,255,0.12);
 }
 
-/* Luxury font stack (Playfair Display for display/premium, Inter for body) */
 .font-premium {
   font-family: "Playfair Display", Georgia, ui-serif, serif;
 }
 
-/* Cinematic film grain overlay */
 @keyframes grain-shift {
   0%, 100% { transform: translate(0, 0); }
   25% { transform: translate(-2%, 1%); }
@@ -315,31 +286,26 @@ input[type="range"].range-brand::-moz-range-thumb {
   animation: grain-shift 7s steps(6) infinite;
 }
 
-/* Gentle drifting bokeh orbs (depth of field feel) */
 @keyframes premium-bokeh {
   0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
   50% { transform: translate(30px, -24px) scale(1.18); opacity: 0.6; }
 }
 
-/* Neon ring sweep for the play button */
 @keyframes neon-ring {
   0%, 100% { box-shadow: 0 0 0 1px rgba(160,140,255,0.55), 0 0 34px 4px rgba(120,110,255,0.38), inset 0 0 18px rgba(180,160,255,0.28); }
   50% { box-shadow: 0 0 0 1px rgba(140,200,255,0.7), 0 0 52px 10px rgba(90,150,255,0.5), inset 0 0 26px rgba(190,210,255,0.4); }
 }
 
-/* Dock tray entrance */
 @keyframes dock-appear {
   0% { opacity: 0; transform: translateY(24px) scale(0.96); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Slow orbital ring rotation around the album artwork */
 @keyframes orbit-rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* Vinyl disc rotation while music plays */
 @keyframes vinyl-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -348,7 +314,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   animation: vinyl-spin 7s linear infinite;
 }
 
-/* Slim, elegant scrollbar for panels */
 .slim-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.14) transparent;
@@ -364,7 +329,6 @@ input[type="range"].range-brand::-moz-range-thumb {
   background: transparent;
 }
 
-/* Soft twinkling starfield particles */
 @keyframes twinkle {
   0%, 100% { opacity: 0.12; transform: scale(0.85); }
   50% { opacity: 0.85; transform: scale(1.15); }

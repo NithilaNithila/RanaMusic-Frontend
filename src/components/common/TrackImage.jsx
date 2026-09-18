@@ -17,10 +17,36 @@ function cacheSet(key, value) {
   imageCache.set(key, value);
 }
 
-const hydrate = (track) => {
-  const key = `${String(track?.name || "").toLowerCase()}|${String(track?.artist_name || "").toLowerCase()}`;
-  if (imageCache.has(key)) return imageCache.get(key);
-  const p = axiosClient
+// A card grid can render ~a dozen artwork-less rows at once; firing all their
+// /tracks/resolve round-trips simultaneously hammers the backend and delays
+// first paint. Cap in-flight resolves and run first-time ones through a queue.
+const RESOLVE_CONCURRENCY = 4;
+let resolveInFlight = 0;
+const resolveQueue = [];
+
+function pump() {
+  while (resolveInFlight < RESOLVE_CONCURRENCY && resolveQueue.length > 0) {
+    const run = resolveQueue.shift();
+    resolveInFlight += 1;
+    run().finally(() => {
+      resolveInFlight -= 1;
+      pump();
+    });
+  }
+}
+
+const queuedResolve = (track) =>
+  new Promise((resolve, reject) => {
+    resolveQueue.push(() => resolveImage(track).then(resolve, reject));
+    pump();
+  });
+
+// Routes the hydrated artwork + any YouTube id through imageSrc so relative
+// /api/ proxy paths are rewritten to the real API origin (same fix as the
+// base image). Resolves to { image, videoId } — the videoId powers the
+// YouTube thumbnail fallback below for tracks whose audio only exists on YT.
+const resolveImage = async (track) => {
+  const res = await axiosClient
     .get("/tracks/resolve", {
       params: {
         name: track?.name || "",
@@ -29,21 +55,37 @@ const hydrate = (track) => {
         id: track?.id || "",
       },
     })
-    // Route the hydrated artwork through imageSrc so relative /api/ proxy
-    // paths are rewritten to the real API origin (same fix as the base image).
-    .then((res) => (res.data && res.data.image ? imageSrc(res.data.image) : ""))
-    .catch(() => "");
+    .catch(() => null);
+  const d = res && res.data ? res.data : null;
+  return {
+    image: d && d.image ? imageSrc(d.image) : "",
+    videoId: d && d.videoId ? d.videoId : "",
+  };
+};
+
+const hydrate = (track) => {
+  const key = `${String(track?.name || "").toLowerCase()}|${String(track?.artist_name || "").toLowerCase()}`;
+  if (imageCache.has(key)) return imageCache.get(key);
+  const p = queuedResolve(track);
   cacheSet(key, p);
   return p;
 };
+
+// When the resolver returns no image but the track has a YouTube videoId,
+// construct a thumbnail URL so the card still shows artwork instead of the
+// generic placeholder.
+const ytThumb = (videoId) =>
+  videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "";
 
 export default function TrackImage({ track, alt = "", className, index }) {
   const [src, setSrc] = useState(() => imageSrc(track?.image));
   const hydratedRef = useRef(false);
   const aliveRef = useRef(true);
+  const trackIdRef = useRef(track?.id);
 
   useEffect(() => {
     aliveRef.current = true;
+    trackIdRef.current = track?.id;
     const base = imageSrc(track?.image);
     setSrc(base);
     hydratedRef.current = false;
@@ -51,10 +93,12 @@ export default function TrackImage({ track, alt = "", className, index }) {
     const needsHydration =
       (base === DEFAULT_ARTWORK || !String(track?.image || "").trim());
     if (needsHydration && (track?.name || track?.artist_name)) {
-      hydrate(track).then((img) => {
-        if (aliveRef.current && img) {
+      const id = track?.id;
+      hydrate(track).then((res) => {
+        if (aliveRef.current && trackIdRef.current === id) {
+          const resolved = res.image || ytThumb(res.videoId || track?.videoId);
           hydratedRef.current = true;
-          setSrc(img);
+          if (resolved) setSrc(resolved);
         }
       });
     }
@@ -67,8 +111,15 @@ export default function TrackImage({ track, alt = "", className, index }) {
   const handleError = (e) => {
     if (!hydratedRef.current && (track?.name || track?.artist_name)) {
       hydratedRef.current = true;
-      hydrate(track).then((img) => {
-        if (aliveRef.current && img) setSrc(img);
+      const id = track?.id;
+      hydrate(track).then((res) => {
+        if (aliveRef.current && trackIdRef.current === id) {
+          const resolved = res.image || ytThumb(res.videoId || track?.videoId);
+          if (resolved) setSrc(resolved);
+          else setSrc(DEFAULT_ARTWORK);
+        } else {
+          setSrc(DEFAULT_ARTWORK);
+        }
       });
     }
     handleImageError(e);
@@ -79,8 +130,11 @@ export default function TrackImage({ track, alt = "", className, index }) {
       src={src}
       alt={alt}
       loading={index != null ? "lazy" : undefined}
+      decoding="async"
       className={className}
       onError={handleError}
+      srcset={src ? `${src} 2x` : undefined}
+      sizes="(max-width: 600px) 90vw, (max-width: 1024px) 70vw, 500px"
     />
   );
 }

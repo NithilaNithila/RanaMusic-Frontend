@@ -1,22 +1,26 @@
 import { memo } from "react";
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { imageSrc, handleImageError } from "../../utils/imageFallback";
 
 function ArtistCard({ artist, index = 0 }) {
-  // YT Music artist rows carry the native channel id; the app's /artists/:id
-  // route is Saavn-only, so point those at the channel (new tab) instead of a
-  // 404 page. Saavn / Spotify / Amazon rows keep the in-app route.
-  // Only provider URLs with a safe https: scheme become external links — a
-  // javascript:/data:/http: value falls back to the inert in-app link.
+  // Search rows carry a provider tag; the app's /artists/:id route is
+  // Saavn-by-default but also resolves Spotify/Amazon ids via ?source=.
+  // Only YT Music artist rows (native channel ids, no in-app detail) point
+  // at the channel (new tab) instead of a 404 page. Only provider URLs with
+  // a safe https: scheme become external links — a javascript:/data:/http:
+  // value falls back to the inert in-app link.
+  const source =
+    artist?.source && ["spotify", "amazon"].includes(artist.source) ? artist.source : null;
   const isSafeHttps = (u) => /^https:\/\//i.test(String(u || ""));
   const isYtChannel = artist?.source === "ytmusic" && isSafeHttps(artist.url);
   const Wrapper = isYtChannel ? "a" : Link;
   return (
-    <motion.div whileTap={{ scale: 0.97 }} className="h-full">
+    <div className="h-full">
       <Wrapper
-        {...(isYtChannel ? { href: artist.url, target: "_blank", rel: "noopener noreferrer" } : { to: `/artists/${artist.id}` })}
-        className="group relative block h-full overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-4 text-center shadow-lg shadow-black/[0.06] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/[0.12] dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-brand/30 dark:hover:bg-white/[0.09] dark:hover:shadow-black/40"
+        {...(isYtChannel
+          ? { href: artist.url, target: "_blank", rel: "noopener noreferrer" }
+          : { to: source ? `/artists/${artist.id}?source=${source}` : `/artists/${artist.id}` })}
+        className="group relative block h-full overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-4 text-center shadow-lg shadow-[rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:bg-white/80 hover:shadow-xl hover:shadow-brand/10 dark:border-white/10 dark:bg-white/5 dark:hover:border-brand/30 dark:hover:bg-white/10 dark:hover:shadow-black/40 tap-scale"
       >
         {/* Soft brand glow behind avatar on hover */}
         <div className="pointer-events-none absolute -top-10 left-1/2 h-28 w-28 -translate-x-1/2 rounded-full bg-brand/25 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100 dark:bg-brand/20" />
@@ -27,6 +31,7 @@ function ArtistCard({ artist, index = 0 }) {
             onError={handleImageError}
             alt={artist.name}
             loading="lazy"
+            decoding="async"
             className="aspect-square w-full rounded-full object-cover shadow-md shadow-black/15 ring-2 ring-white/30 transition-all duration-500 ease-out group-hover:scale-[1.06] group-hover:ring-brand/60 dark:ring-white/15"
           />
 
@@ -40,7 +45,7 @@ function ArtistCard({ artist, index = 0 }) {
           {artist.name}
         </p>
       </Wrapper>
-    </motion.div>
+    </div>
   );
 }
 

@@ -7,7 +7,7 @@ import {
   getCatalogAlbumTracks,
   isCatalogAlbumSource,
 } from "../api/albumApi";
-import { useAudioPlayer } from "../hooks/useAudioPlayer";
+import { usePlayer } from "../hooks/useAudioPlayer";
 import TrackList from "../components/track/TrackList.jsx";
 import Loader from "../components/common/Loader.jsx";
 import Button from "../components/common/Button.jsx";
@@ -19,16 +19,25 @@ export default function AlbumDetails() {
   // Albums from search are provider-tagged (?source=spotify|amazon); the
   // default Saavn route cannot open Amazon/Spotify albums (it 404s).
   const source = isCatalogAlbumSource(searchParams.get("source")) ? searchParams.get("source") : null;
+  // Broken links can carry a null id (e.g. a track built from an empty
+  // album_id). Skip the API entirely instead of firing /albums/null requests.
+  const hasValidId = typeof id === "string" && id.trim() && id !== "null" && id !== "undefined";
   const [album, setAlbum] = useState(null);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { playTrack } = useAudioPlayer();
+  const { playTrack } = usePlayer();
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setAlbum(null);
     setTracks([]);
+    if (!hasValidId) {
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
     const getAlbum = source ? getCatalogAlbum : getAlbumById;
     const getTracks = source ? getCatalogAlbumTracks : getAlbumTracks;
     Promise.all([getAlbum(source, id), getTracks(source, id)])
@@ -48,7 +57,7 @@ export default function AlbumDetails() {
     return () => {
       active = false;
     };
-  }, [id, source]);
+  }, [id, source, hasValidId]);
 
   if (loading) return <Loader size="lg" />;
   if (!album) return <p className="text-black/50 dark:text-white/50">Album not found.</p>;
@@ -62,6 +71,7 @@ export default function AlbumDetails() {
             src={imageSrc(album.image)}
             onError={handleImageError}
             alt={album.name}
+            decoding="async"
             className="h-44 w-44 rounded-2xl object-cover shadow-2xl shadow-black/30 ring-1 ring-black/10 sm:h-48 sm:w-48 dark:shadow-black/60 dark:ring-white/10"
           />
           <div className="min-w-0">

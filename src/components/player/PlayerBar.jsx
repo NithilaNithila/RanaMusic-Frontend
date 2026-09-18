@@ -1,8 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { useAudioPlayer } from "../../hooks/useAudioPlayer";
 import VolumeControl from "./VolumeControl.jsx";
-import { imageSrc, handleImageError } from "../../utils/imageFallback";
+import TrackImage from "../common/TrackImage.jsx";
 
 const stroke = {
   fill: "none",
@@ -46,7 +45,7 @@ const ExpandIcon = (
 );
 
 const ghostBtn =
-  "grid place-items-center rounded-full text-black/45 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white";
+  "grid place-items-center rounded-full text-black/45 transition-colors hover:text-black dark:text-white/50 dark:hover:text-white tap-scale";
 
 // Flat, minimal bottom bar: track info on the left, controls centered on
 // desktop (right-aligned on mobile), utilities on the right. A thin progress
@@ -73,12 +72,7 @@ export default function PlayerBar() {
   const pct = total ? Math.max(0, Math.min(1, progress / total)) : 0;
 
   return (
-    <motion.div
-      className="relative z-20 shrink-0 border-t border-black/[0.08] bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-brand-surface/95"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
-    >
+    <div className="relative z-20 shrink-0 border-t border-black/[0.08] bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-brand-surface/95 playerbar-enter">
       {/* Progress hairline */}
       <div className="absolute inset-x-0 top-0 h-[3px] bg-black/[0.06] dark:bg-white/[0.06]">
         <div
@@ -94,9 +88,8 @@ export default function PlayerBar() {
           title="Open Now Playing"
           className="group flex min-w-0 items-center gap-3 rounded-lg text-left"
         >
-          <img
-            src={imageSrc(track.image)}
-            onError={handleImageError}
+          <TrackImage
+            track={track}
             alt={track.name}
             className="h-11 w-11 shrink-0 rounded-md object-cover shadow-sm ring-1 ring-black/5 dark:ring-white/10"
           />
@@ -117,15 +110,14 @@ export default function PlayerBar() {
 
         {/* Desktop transport */}
         <div className="hidden items-center justify-center gap-1.5 md:flex">
-          <motion.button
+          <button
             onClick={playPrev}
-            whileTap={{ scale: 0.85 }}
             className={`${ghostBtn} h-9 w-9`}
             title="Previous"
             aria-label="Previous"
           >
             {PrevIcon}
-          </motion.button>
+          </button>
 
           <button
             onClick={togglePlay}
@@ -136,15 +128,14 @@ export default function PlayerBar() {
             {isPlaying ? PauseIcon : PlayIcon}
           </button>
 
-          <motion.button
+          <button
             onClick={playNext}
-            whileTap={{ scale: 0.85 }}
             className={`${ghostBtn} h-9 w-9`}
             title="Next"
             aria-label="Next"
           >
             {NextIcon}
-          </motion.button>
+          </button>
         </div>
 
         {/* Right side */}
@@ -181,6 +172,6 @@ export default function PlayerBar() {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -7,18 +7,16 @@ export default function App() {
   const { pathname } = useLocation();
   const isFullScreen = pathname === "/now-playing";
 
-  if (isFullScreen)
-    return (
-      <>
-        <AppRoutes />
-        <YouTubePlayerBridge />
-      </>
-    );
-
   return (
-    <MainLayout>
-      <AppRoutes />
+    <>
+      {isFullScreen ? (
+        <AppRoutes />
+      ) : (
+        <MainLayout>
+          <AppRoutes />
+        </MainLayout>
+      )}
       <YouTubePlayerBridge />
-    </MainLayout>
+    </>
   );
 }

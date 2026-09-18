@@ -2,35 +2,48 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { getPlaylistById, deletePlaylist } from "../api/playlistApi";
 import { getCatalogPlaylist, getCatalogPlaylistTracks } from "../api/catalogApi";
-import { useAudioPlayer } from "../hooks/useAudioPlayer";
+import { usePlayer } from "../hooks/useAudioPlayer";
 import TrackList from "../components/track/TrackList.jsx";
 import Loader from "../components/common/Loader.jsx";
 import Button from "../components/common/Button.jsx";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
 
-const PROVIDERS = ["saavn", "spotify", "ytmusic", "amazon"];
+const PROVIDERS = ["saavn", "spotify", "amazon", "ytmusic"];
 
 export default function PlaylistDetails() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const source = PROVIDERS.includes(searchParams.get("source")) ? searchParams.get("source") : null;
   const isCatalog = Boolean(source);
+  // Broken links can carry a null id. Skip the API entirely instead of
+  // firing /playlists/null (or a provider variant) requests.
+  const hasValidId = typeof id === "string" && id.trim() && id !== "null" && id !== "undefined";
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const { playTrack } = useAudioPlayer();
+  const [reloadKey, setReloadKey] = useState(0);
+  const { playTrack } = usePlayer();
   const navigate = useNavigate();
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     let active = true;
+
+    if (!hasValidId) {
+      setPlaylist(null);
+      setError(404);
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
 
     const load = async () => {
       try {
         if (isCatalog) {
           const res = await getCatalogPlaylist(source, id);
-          // Saavn's detail endpoint wraps a single playlist in a results
-          // array; normalize so the songs check below sees one object.
           let data = Array.isArray(res.data) ? res.data[0] || {} : res.data;
           if (!data.songs?.length) {
             const tracksRes = await getCatalogPlaylistTracks(source, id);
@@ -41,8 +54,11 @@ export default function PlaylistDetails() {
           const res = await getPlaylistById(id);
           if (active) setPlaylist(res.data);
         }
-      } catch {
-        if (active) setPlaylist(null);
+      } catch (err) {
+        if (active) {
+          setPlaylist(null);
+          setError(err?.response?.status || "network");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -52,9 +68,16 @@ export default function PlaylistDetails() {
     return () => {
       active = false;
     };
-  }, [id, source, isCatalog]);
+  }, [id, source, isCatalog, reloadKey, hasValidId]);
 
   if (loading) return <Loader size="lg" />;
+  if (!playlist && error && error !== 404)
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-black/5 bg-black/[0.03] p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">
+        <p className="text-sm text-black/50 dark:text-white/50">Couldn't load the playlist right now.</p>
+        <Button onClick={() => setReloadKey((k) => k + 1)}>Retry</Button>
+      </div>
+    );
   if (!playlist) return <p className="text-black/50 dark:text-white/50">Playlist not found.</p>;
 
   const tracks = playlist.songs || playlist.tracks || [];
@@ -84,11 +107,14 @@ export default function PlaylistDetails() {
             src={cover}
             onError={handleImageError}
             alt={playlist.name}
+            decoding="async"
             className="h-44 w-44 rounded-2xl object-cover shadow-2xl shadow-black/30 ring-1 ring-black/10 sm:h-48 sm:w-48 dark:shadow-black/60 dark:ring-white/10"
           />
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
-              {isCatalog ? { saavn: "JioSaavn", spotify: "Spotify", ytmusic: "YouTube Music", amazon: "Amazon Music" }[source] : "Playlist"}
+              {isCatalog
+                ? { saavn: "JioSaavn", spotify: "Spotify", amazon: "Amazon Music", ytmusic: "YouTube Music" }[source]
+                : "Playlist"}
             </p>
             <h1 className="font-display mt-1 break-words text-3xl font-semibold tracking-tight sm:text-4xl">
               {playlist.name}

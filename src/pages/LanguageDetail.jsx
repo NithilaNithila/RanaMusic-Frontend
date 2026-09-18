@@ -6,7 +6,7 @@ import { getAlbums, searchAlbums } from "../api/albumApi";
 import { getArtists, searchArtists } from "../api/artistApi";
 import { globalSearch } from "../api/searchApi";
 import { getPublicPlaylists } from "../api/playlistApi";
-import { useAudioPlayer } from "../hooks/useAudioPlayer";
+import { usePlayer } from "../hooks/useAudioPlayer";
 import { useDebounce } from "../hooks/useDebounce";
 import { LANGUAGES } from "../context/LanguageContext";
 import { mergePlaylists } from "../utils/helpers";
@@ -42,7 +42,7 @@ const SearchIcon = (
 export default function LanguageDetail() {
   const { lang } = useParams();
   const meta = LANGUAGES.find((l) => l.code === lang);
-  const { playTrack } = useAudioPlayer();
+  const { playTrack } = usePlayer();
 
   const [tracks, setTracks] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);

@@ -643,6 +643,7 @@ export default function NowPlaying() {
                               src={imageSrc(p.coverImage || p.tracks?.[0]?.albumImage || p.tracks?.[0]?.image)}
                               onError={handleImageError}
                               alt={p.name}
+                              decoding="async"
                               className="h-11 w-11 rounded-xl object-cover ring-1 ring-white/10"
                             />
                             <span className="min-w-0">

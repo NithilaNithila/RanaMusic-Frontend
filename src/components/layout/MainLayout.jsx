@@ -5,8 +5,9 @@ import PlayerBar from "../player/PlayerBar.jsx";
 export default function MainLayout({ children }) {
   return (
     <div className="relative flex h-screen flex-col bg-brand-light-bg text-black dark:bg-brand-dark dark:text-white">
-      {/* Ambient background glows */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Ambient background glows — hidden on small screens: blur(130px)+ gradients
+          are expensive to paint/composite on mobile GPUs and slow the main thread. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
         <div className="absolute -left-24 -top-32 h-80 w-80 rounded-full bg-brand/20 blur-[130px] dark:bg-brand/10" />
         <div className="absolute -right-28 top-1/3 h-96 w-96 rounded-full bg-brand/10 blur-[140px] dark:bg-brand/[0.06]" />
         <div className="absolute -bottom-40 left-1/3 h-80 w-80 rounded-full bg-brand/10 blur-[130px] dark:bg-brand/[0.05]" />

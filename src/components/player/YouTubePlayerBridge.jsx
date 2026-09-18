@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAudioPlayer } from "../../hooks/useAudioPlayer";
+import { usePlayer } from "../../hooks/useAudioPlayer";
 
 // YT states: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering.
 const YT_STATE_PLAYING = 1;
@@ -60,7 +60,7 @@ export default function YouTubePlayerBridge() {
     reportYoutube,
     playNext,
     isPlaying,
-  } = useAudioPlayer();
+  } = usePlayer();
 
   const containerRef = useRef(null);
   const playerRef = useRef();

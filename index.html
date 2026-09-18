@@ -7,12 +7,52 @@
     <title>RanaMusic</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Font stylesheet is preloaded (not render-blocking) so first paint
+         isn't gated on the fonts CDN round-trip; display=optional delivers a
+         quick fallback face and only swaps if fonts arrive ~instantly.
+         Weights are trimmed to those actually used (no 300/900, no italics). -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=optional"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9191603765283821"
-     crossorigin="anonymous"></script>
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=optional"
+      />
+    </noscript>
+    <script>
+      // Load AdSense after the page becomes idle (or on first scroll / a
+      // 8s fallback) so the ad script never blocks first paint or the main
+      // thread during page load. Repeated load() calls are a no-op.
+      // On the Home route we skip AdSense entirely so the first paint is never
+      // delayed by the third‑party script.
+      (function () {
+        var done = false;
+        if (window.location.pathname === "/" || window.location.pathname === "/home") {
+          done = true; // AdSense loader becomes a no‑op on Home
+        }
+        function load() {
+          if (done) return;
+          done = true;
+          var s = document.createElement("script");
+          s.async = true;
+          s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9191603765283821";
+          s.crossOrigin = "anonymous";
+          document.head.appendChild(s);
+        }
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(load, { timeout: 8000 });
+        } else if (document.readyState === "complete") {
+          load();
+        } else {
+          window.addEventListener("load", load, { once: true });
+        }
+        window.addEventListener("scroll", load, { once: true, passive: true });
+      })();
+    </script>
   </head>
   <body class="bg-brand-dark text-white">
     <div id="root"></div>
