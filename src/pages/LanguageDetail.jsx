@@ -19,7 +19,7 @@ import TrackList from "../components/track/TrackList.jsx";
 import AlbumGrid from "../components/album/AlbumGrid.jsx";
 import ArtistGrid from "../components/artist/ArtistGrid.jsx";
 import PlaylistCard from "../components/playlist/PlaylistCard.jsx";
-import Loader from "../components/common/Loader.jsx";
+import SkeletonCardGrid from "../components/common/SkeletonCardGrid.jsx";
 import SkeletonRows from "../components/common/SkeletonRows.jsx";
 import Input from "../components/common/Input.jsx";
 
@@ -755,7 +755,18 @@ export default function LanguageDetail() {
           </Section>
         </>
       ) : loading ? (
-        <Loader size="lg" />
+        <div className="space-y-12" aria-hidden="true">
+          <div>
+            <div className="mb-4 h-4 w-44 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+            <div className="mb-2 h-3 w-24 rounded-full bg-black/[0.05] dark:bg-white/[0.06] animate-pulse" />
+            <SkeletonCardGrid count={8} />
+          </div>
+          <div>
+            <div className="mb-4 h-4 w-36 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+            <SkeletonCardGrid count={8} />
+          </div>
+          <SkeletonRows count={5} />
+        </div>
       ) : (
         <>
           <Section title="Trending Songs" subtitle={`What's hot in ${meta.label} right now`}>

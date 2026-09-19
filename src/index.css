@@ -74,12 +74,18 @@ html.theme-anim *::after {
 
 .reveal {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  transform: translateY(38px) scale(0.97);
+  filter: blur(5px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.7s ease-out;
+  will-change: opacity, transform;
 }
 .reveal.in-view {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .card-grid {
@@ -335,6 +341,12 @@ input[type="range"].range-brand::-moz-range-thumb {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
   .premium-float,
   .premium-halo,
   .premium-orbit,

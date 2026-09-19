@@ -4,7 +4,7 @@ import { getArtistById, getArtistAlbums, getArtistTracks } from "../api/artistAp
 import AlbumGrid from "../components/album/AlbumGrid.jsx";
 import TrackList from "../components/track/TrackList.jsx";
 import ShowMoreButton from "../components/common/ShowMoreButton.jsx";
-import Loader from "../components/common/Loader.jsx";
+import SkeletonCardGrid from "../components/common/SkeletonCardGrid.jsx";
 import Button from "../components/common/Button.jsx";
 import Section from "../components/common/Section.jsx";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
@@ -93,7 +93,23 @@ export default function ArtistDetails() {
     }
   };
 
-  if (loading) return <Loader size="lg" />;
+  if (loading)
+    return (
+      <div className="animate-fadeIn" aria-hidden="true">
+        <div className="relative -mx-4 mb-10 overflow-hidden px-4 pb-8 pt-10 text-center sm:-mx-6 sm:px-6">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-brand/[0.08] via-transparent to-transparent" />
+          <div className="mx-auto w-fit">
+            <div className="h-40 w-40 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse sm:h-48 sm:w-48" />
+          </div>
+          <div className="mx-auto mt-5 w-full max-w-xs space-y-3">
+            <div className="mx-auto h-3 w-16 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+            <div className="mx-auto h-8 w-3/4 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+            <div className="mx-auto h-3 w-1/2 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+          </div>
+        </div>
+        <SkeletonCardGrid count={8} />
+      </div>
+    );
   if (!artist && error && error !== 404)
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-black/5 bg-black/[0.03] p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">

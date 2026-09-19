@@ -10,7 +10,7 @@ import RevealItem from "../components/common/RevealItem.jsx";
 import ShowMoreButton from "../components/common/ShowMoreButton.jsx";
 import TrackCard from "../components/track/TrackCard.jsx";
 import LazyMount from "../components/common/LazyMount.jsx";
-import Loader from "../components/common/Loader.jsx";
+import SkeletonCardGrid from "../components/common/SkeletonCardGrid.jsx";
 
 // The below-fold sections (and their grids/cards) are code-split: they're not
 // even downloaded until LazyMount brings them near the viewport.
@@ -105,7 +105,7 @@ export default function Home() {
 
       <Section title="Popular Right Now" subtitle="Tracks everyone's playing today">
         {loadingTracks ? (
-          <Loader size="lg" />
+          <SkeletonCardGrid count={TRACK_PAGE_SIZE} />
         ) : tracks.length ? (
           <>
             <div className="card-grid">

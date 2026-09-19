@@ -4,7 +4,7 @@ import { getPlaylistById, deletePlaylist } from "../api/playlistApi";
 import { getCatalogPlaylist, getCatalogPlaylistTracks } from "../api/catalogApi";
 import { usePlayer } from "../hooks/useAudioPlayer";
 import TrackList from "../components/track/TrackList.jsx";
-import Loader from "../components/common/Loader.jsx";
+import SkeletonRows from "../components/common/SkeletonRows.jsx";
 import Button from "../components/common/Button.jsx";
 import { imageSrc, handleImageError } from "../utils/imageFallback";
 
@@ -70,7 +70,23 @@ export default function PlaylistDetails() {
     };
   }, [id, source, isCatalog, reloadKey, hasValidId]);
 
-  if (loading) return <Loader size="lg" />;
+  if (loading)
+    return (
+      <div className="animate-fadeIn" aria-hidden="true">
+        <div className="relative -mx-4 mb-8 overflow-hidden px-4 pb-8 pt-10 sm:-mx-6 sm:px-6">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-brand/[0.08] via-transparent to-transparent" />
+          <div className="relative flex flex-col items-center gap-6 text-center sm:flex-row sm:items-end sm:text-left">
+            <div className="h-44 w-44 shrink-0 rounded-2xl bg-black/[0.07] dark:bg-white/[0.08] animate-pulse sm:h-48 sm:w-48" />
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="h-3 w-20 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+              <div className="h-8 w-2/3 max-w-sm rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+              <div className="h-3 w-24 rounded-full bg-black/[0.07] dark:bg-white/[0.08] animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <SkeletonRows count={7} />
+      </div>
+    );
   if (!playlist && error && error !== 404)
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-black/5 bg-black/[0.03] p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">

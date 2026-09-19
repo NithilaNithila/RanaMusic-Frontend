@@ -1,10 +1,11 @@
 import Navbar from "./Navbar.jsx";
 import Footer from "./Footer.jsx";
 import PlayerBar from "../player/PlayerBar.jsx";
+import ScrollToTop from "../common/ScrollToTop.jsx";
 
 export default function MainLayout({ children }) {
   return (
-    <div className="relative flex h-screen flex-col bg-brand-light-bg text-black dark:bg-brand-dark dark:text-white">
+    <div className="relative flex h-screen supports-[height:100dvh]:h-dvh flex-col bg-brand-light-bg text-black dark:bg-brand-dark dark:text-white">
       {/* Ambient background glows — hidden on small screens: blur(130px)+ gradients
           are expensive to paint/composite on mobile GPUs and slow the main thread. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
@@ -16,6 +17,7 @@ export default function MainLayout({ children }) {
       <Navbar />
 
       <main className="relative flex flex-1 flex-col overflow-y-auto">
+        <ScrollToTop />
         <div className="mx-auto w-full max-w-[1680px] flex-1 px-4 py-5 sm:p-6 tv:max-w-[1760px] tv:px-10">{children}</div>
         <Footer />
       </main>

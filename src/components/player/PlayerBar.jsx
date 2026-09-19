@@ -81,7 +81,7 @@ export default function PlayerBar() {
         />
       </div>
 
-      <div className="mx-auto grid h-16 w-full max-w-[1720px] grid-cols-3 items-center gap-3 px-4 sm:h-[72px] sm:px-6">
+      <div className="mx-auto grid h-16 w-full max-w-[1720px] grid-cols-2 items-center gap-3 px-4 sm:h-[72px] sm:px-6 md:grid-cols-3">
         {/* Track */}
         <button
           onClick={() => navigate("/now-playing")}
@@ -93,15 +93,15 @@ export default function PlayerBar() {
             alt={track.name}
             className="h-11 w-11 shrink-0 rounded-md object-cover shadow-sm ring-1 ring-black/5 dark:ring-white/10"
           />
-          <span className="min-w-0">
-            <span className="block max-w-[calc(100vw-19rem)] truncate text-sm font-semibold text-black transition-colors group-hover:text-brand dark:text-white sm:max-w-[24rem]">
+          <span className="min-w-0 flex-1">
+            <span className="block max-w-[45vw] truncate text-sm font-semibold text-black transition-colors group-hover:text-brand dark:text-white sm:max-w-[24rem]">
               {track.name}
             </span>
-            <span className="block max-w-[calc(100vw-19rem)] truncate text-xs text-black/45 dark:text-white/45 sm:max-w-[24rem]">
+            <span className="block max-w-[45vw] truncate text-xs text-black/45 dark:text-white/45 sm:max-w-[24rem]">
               {track.artist_name}
             </span>
             {playbackError && (
-              <span className="block max-w-[calc(100vw-19rem)] truncate text-xs text-red-500 dark:text-red-400 sm:max-w-[24rem]">
+              <span className="block max-w-[45vw] truncate text-xs text-red-500 dark:text-red-400 sm:max-w-[24rem]">
                 {playbackError}
               </span>
             )}

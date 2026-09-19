@@ -8,7 +8,7 @@ import ShowMoreButton from "../common/ShowMoreButton.jsx";
 import AlbumGrid from "../album/AlbumGrid.jsx";
 import ArtistGrid from "../artist/ArtistGrid.jsx";
 import PlaylistCard from "../playlist/PlaylistCard.jsx";
-import Loader from "../common/Loader.jsx";
+import SkeletonCardGrid from "../common/SkeletonCardGrid.jsx";
 
 const PAGE_SIZE = 12;
 const MAX_FETCH_ATTEMPTS = 6;
@@ -89,7 +89,7 @@ export function AlbumsSection({ language }) {
   return (
     <Section title="Fresh Albums" subtitle="New releases picked for you">
       {loading ? (
-        <Loader size="sm" />
+        <SkeletonCardGrid count={8} />
       ) : albums.length ? (
         <>
           <AlbumGrid albums={albums.slice(0, visible)} />
@@ -152,7 +152,7 @@ export function ArtistsSection({ language }) {
   return (
     <Section title="Artists on the Rise" subtitle="Discover who's trending">
       {loading ? (
-        <Loader size="sm" />
+        <SkeletonCardGrid count={8} />
       ) : artists.length ? (
         <>
           <ArtistGrid artists={artists.slice(0, visible)} />
@@ -234,7 +234,7 @@ export function PlaylistsSection() {
   return (
     <Section title="Playlists" subtitle="Curated from Spotify, YouTube Music & Amazon Music">
       {loading ? (
-        <Loader size="sm" />
+        <SkeletonCardGrid count={8} />
       ) : playlists.length ? (
         <>
           <div className="card-grid">
