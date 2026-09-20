@@ -202,8 +202,12 @@ function useBrowseList({ query, language, fetchPage, cacheKey }) {
       const raw = sessionStorage.getItem(key);
       if (raw) {
         const { ts, data } = JSON.parse(raw);
-        if (Date.now() - ts < CACHE_TTL_MS) return data;
-        sessionStorage.removeItem(key);
+        if (Date.now() - ts >= CACHE_TTL_MS) {
+          sessionStorage.removeItem(key);
+          return null;
+        }
+        const base = Array.isArray(data) ? data : data?.results || data;
+        return Array.isArray(base) ? base : base?.[`${cacheKey}s`] || [];
       }
     } catch {
       /* ignore corrupt cache */
@@ -640,8 +644,12 @@ function PlaylistsTab({ query }) {
       const raw = sessionStorage.getItem(key);
       if (raw) {
         const { ts, data } = JSON.parse(raw);
-        if (Date.now() - ts < CACHE_TTL_MS) return data;
-        sessionStorage.removeItem(key);
+        if (Date.now() - ts >= CACHE_TTL_MS) {
+          sessionStorage.removeItem(key);
+          return null;
+        }
+        const base = Array.isArray(data) ? data : data?.results || data;
+        return Array.isArray(base) ? base : base?.playlists || [];
       }
     } catch {
       /* ignore corrupt cache */
