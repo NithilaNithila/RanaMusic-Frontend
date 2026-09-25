@@ -7,11 +7,15 @@ describe("imageSrc", () => {
     expect(imageSrc("  https://x/y.jpg  ")).toBe("https://x/y.jpg");
   });
 
-  it("returns the placeholder for blank/whitespace values", () => {
+  it("returns the placeholder for invalid values", () => {
     expect(imageSrc("")).toBe(DEFAULT_ARTWORK);
     expect(imageSrc("   ")).toBe(DEFAULT_ARTWORK);
     expect(imageSrc(undefined)).toBe(DEFAULT_ARTWORK);
     expect(imageSrc(null)).toBe(DEFAULT_ARTWORK);
+    expect(imageSrc({})).toBe(DEFAULT_ARTWORK);
+    expect(imageSrc({ url: "https://x/y.jpg" })).toBe(DEFAULT_ARTWORK);
+    expect(imageSrc(["https://x/y.jpg"])).toBe(DEFAULT_ARTWORK);
+    expect(imageSrc("<!doctype html><title>500</title>")).toBe(DEFAULT_ARTWORK);
   });
 });
 

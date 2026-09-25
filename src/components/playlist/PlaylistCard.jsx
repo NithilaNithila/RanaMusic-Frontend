@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { imageSrc, handleImageError } from "../../utils/imageFallback";
+import { imageSrc, handleImageError, toAbsoluteImage } from "../../utils/imageFallback";
 import { formatDuration } from "../../utils/formatDuration";
 import { LANGUAGES } from "../../context/LanguageContext";
 
@@ -32,21 +32,27 @@ const TrashIcon = (
 export default memo(function PlaylistCard({ playlist, index = 0, source = null, onDelete = null }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const id = playlist.id || playlist._id;
-  const tracks = playlist.tracks || playlist.songs || [];
-  const trackWithArt = tracks.find((t) => t.albumImage || t.image || t.thumbnail);
-  const firstImg = Array.isArray(playlist.images) ? playlist.images[0] : null;
-  const cover = imageSrc(
-    playlist.coverImage ||
-      playlist.image ||
-      firstImg?.url ||
-      firstImg ||
-      playlist.thumbnail ||
-      trackWithArt?.albumImage ||
-      trackWithArt?.image ||
-      trackWithArt?.thumbnail ||
-      tracks[0]?.image ||
-      tracks[0]?.thumbnail
-  );
+  const tracks =
+    Array.isArray(playlist.tracks) && playlist.tracks.length > 0
+      ? playlist.tracks
+      : Array.isArray(playlist.songs)
+        ? playlist.songs
+        : [];
+  const playlistImages = Array.isArray(playlist.images) ? playlist.images : [];
+  const coverCandidates = [
+    playlist.coverImage,
+    playlist.image,
+    ...playlistImages.map((image) =>
+      typeof image === "string" ? image : image?.url
+    ),
+    playlist.thumbnail,
+    ...tracks.flatMap((track) => [
+      track?.albumImage,
+      track?.image,
+      track?.thumbnail,
+    ]),
+  ];
+  const cover = imageSrc(coverCandidates.map(toAbsoluteImage).find(Boolean));
   // Catalog playlists carry their provider as `source`; an explicit prop
   // takes precedence. Own (MongoDB) playlists have neither.
   const provider = source || playlist.source || null;

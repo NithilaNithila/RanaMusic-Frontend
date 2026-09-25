@@ -23,8 +23,9 @@ export const apiOrigin = () => {
 // Resolve a relative /api/ image path to the API origin; leaves absolute URLs
 // untouched so Saavn CDN (and redirect) images keep working everywhere.
 export const toAbsoluteImage = (img) => {
-  const v = String(img || "").trim();
-  if (!v) return "";
+  if (typeof img !== "string") return "";
+  const v = img.trim();
+  if (!v || /^<(?:!doctype|html)\b/i.test(v)) return "";
   if (/^https?:\/\//.test(v)) return v;
   if (v.startsWith("/api/")) {
     const origin = apiOrigin();

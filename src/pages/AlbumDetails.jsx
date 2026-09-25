@@ -21,7 +21,11 @@ export default function AlbumDetails() {
   const source = isCatalogAlbumSource(searchParams.get("source")) ? searchParams.get("source") : null;
   // Broken links can carry a null id (e.g. a track built from an empty
   // album_id). Skip the API entirely instead of firing /albums/null requests.
-  const hasValidId = typeof id === "string" && id.trim() && id !== "null" && id !== "undefined";
+  const normalizedId = typeof id === "string" ? id.trim() : "";
+  const hasValidId =
+    normalizedId !== "" &&
+    normalizedId.toLowerCase() !== "null" &&
+    normalizedId.toLowerCase() !== "undefined";
   const [album, setAlbum] = useState(null);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +42,13 @@ export default function AlbumDetails() {
         active = false;
       };
     }
-    const getAlbum = source ? getCatalogAlbum : getAlbumById;
-    const getTracks = source ? getCatalogAlbumTracks : getAlbumTracks;
-    Promise.all([getAlbum(source, id), getTracks(source, id)])
+    const albumRequest = source
+      ? getCatalogAlbum(source, normalizedId)
+      : getAlbumById(normalizedId);
+    const tracksRequest = source
+      ? getCatalogAlbumTracks(source, normalizedId)
+      : getAlbumTracks(normalizedId);
+    Promise.all([albumRequest, tracksRequest])
       .then(([albumRes, tracksRes]) => {
         if (!active) return;
         setAlbum(albumRes.data);
@@ -57,7 +65,7 @@ export default function AlbumDetails() {
     return () => {
       active = false;
     };
-  }, [id, source, hasValidId]);
+  }, [normalizedId, source, hasValidId]);
 
   if (loading)
     return (
